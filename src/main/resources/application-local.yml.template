@@ -1,0 +1,31 @@
+# Local Development Configuration Template
+# Copy this file to application-local.yml and update with your local values
+# NEVER commit application-local.yml to version control
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/expense_tracker_db
+    username: postgres
+    password: your_password_here
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  flyway:
+    enabled: true
+
+jwt:
+  secret: local-development-secret-key-minimum-256-bits-required-for-hs256-algorithm
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+logging:
+  level:
+    root: INFO
+    com.expensetracker: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

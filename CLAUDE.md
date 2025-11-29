@@ -1,8 +1,11 @@
-CLAUDE.md
+# CLAUDE.md
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-Project Overview
+
+## Project Overview
 Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов и доходов. Приложение предоставляет функционал управления транзакциями, категориями, счетами, бюджетами и повторяющимися платежами с JWT-аутентификацией.
-Key Features
+
+### Key Features
 User authentication (JWT-based)
 Transaction management (expenses/income)
 Categories with hierarchy support
@@ -10,8 +13,10 @@ Multiple accounts (cards, cash, etc.)
 Budgets and recurring transactions/subscriptions
 Basic analytics and reporting
 CSV export
-Development Commands
-Setup
+
+## Development Commands
+
+### Setup
 # Clone and setup
 git clone <repository-url>
 cd daily-finance-backend
@@ -19,14 +24,16 @@ cd daily-finance-backend
 cp src/main/resources/application-local.yml.template src/main/resources/application-local.yml
 # Install dependencies and build
 ./mvnw clean install
-Running the Application
+
+### Running the Application
 # Development mode with local profile
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 # Or using Makefile
 make run
 # Production mode
 java -jar target/expense-tracker-api-1.0.0.jar --spring.profiles.active=prod
-Testing
+
+### Testing
 # Run all tests
 ./mvnw test
 # Run with coverage
@@ -35,7 +42,8 @@ Testing
 ./mvnw test -Dtest=ExpenseServiceTest
 # Run integration tests
 ./mvnw verify -P integration-test
-Database
+
+### Database
 # Flyway migrations run automatically on startup
 # Manual migration commands:
 # Validate migrations
@@ -46,7 +54,8 @@ Database
 ./mvnw flyway:repair
 # Clean database (CAUTION: drops all objects)
 ./mvnw flyway:clean -Dflyway.cleanDisabled=false
-Build & Deploy
+
+### Build & Deploy
 # Build without tests
 ./mvnw clean package -DskipTests
 # Build with tests
@@ -57,8 +66,10 @@ docker build -t expense-tracker-api:latest .
 docker-compose up -d
 # View logs
 docker-compose logs -f app
-Architecture
-Technology Stack
+
+## Architecture
+
+### Technology Stack
 | Layer | Technology |
 |-------|------------|
 | Framework | Spring Boot 3.2.x |
@@ -73,7 +84,8 @@ Technology Stack
 | Monitoring | Spring Actuator + Micrometer + Prometheus |
 | Testing | JUnit 5, Testcontainers, H2 |
 | Build | Maven |
-Project Structure
+
+### Project Structure
 src/
 ├── main/
 │   ├── java/com/expensetracker/
@@ -98,7 +110,9 @@ src/
 ├── controller/       # Controller integration tests
 ├── service/          # Service unit tests
 └── repository/       # Repository tests with Testcontainers
-Database Schema
+
+### Database Schema
+
 Core Entities:
 users — User accounts with authentication data
 accounts — Financial accounts (bank cards, cash, etc.)
@@ -112,7 +126,8 @@ User → Categories (1:N)
 Account → Transactions (1:N)
 Category → Transactions (1:N)
 Category → Category (self-referential for hierarchy)
-API Architecture
+
+### API Architecture
 Style: RESTful API with JSON payloads
 Base Path: /api/v1
 Authentication: Bearer JWT token in Authorization header
@@ -135,7 +150,8 @@ POST   /api/v1/accounts          # Create account
 GET    /api/v1/stats/summary     # Dashboard statistics
 GET    /api/v1/stats/by-category # Spending by category
 GET    /api/v1/export/csv        # Export transactions to CSV
-Key Patterns
+
+### Key Patterns
 1. Layered Architecture
    Controller → Service → Repository → Database
    ↓           ↓
@@ -157,28 +173,36 @@ Key Patterns
    BCrypt password encoding
    CORS configured for frontend origins
    Actuator endpoints secured
-   Important Notes
-   Configuration
-   Never commit application-local.yml — contains secrets
-   Use environment variables for sensitive data in production
-   JWT secret must be at least 256 bits in production
-   Database Migrations
-   Migration files are immutable — never edit existing migrations
-   Naming convention: V{version}__{description}.sql (e.g., V1__create_users_table.sql)
-   Always test migrations on a copy of production data before deploying
-   Code Conventions
-   Follow SOLID principles
-   Use Lombok for boilerplate reduction (but avoid @Data on entities — use @Getter @Setter)
-   DTOs are immutable where possible (use records or builders)
-   Services handle business logic; controllers are thin
-   All public service methods should be unit tested
-   Common Commands Quick Reference
-   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local  # Run locally
-   ./mvnw test                                               # Run tests
-   ./mvnw clean package -DskipTests                          # Build JAR
-   docker-compose up -d                                      # Start with Docker
-   Useful URLs (local development)
-   API: http://localhost:8080
-   Swagger UI: http://localhost:8080/swagger-ui.html
-   Actuator Health: http://localhost:8080/actuator/health
-   Prometheus metrics: http://localhost:8080/actuator/prometheus
+
+## Important Notes
+
+### Configuration
+- Never commit application-local.yml — contains secrets
+- Use environment variables for sensitive data in production
+- JWT secret must be at least 256 bits in production
+
+### Database Migrations
+- Migration files are immutable — never edit existing migrations
+- Naming convention: V{version}__{description}.sql (e.g., V1__create_users_table.sql)
+- Always test migrations on a copy of production data before deploying
+
+### Code Conventions
+- Follow SOLID principles
+- Use Lombok for boilerplate reduction (but avoid @Data on entities — use @Getter @Setter)
+- DTOs are immutable where possible (use records or builders)
+- Services handle business logic; controllers are thin
+- All public service methods should be unit tested
+
+### Common Commands Quick Reference
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local  # Run locally
+./mvnw test                                               # Run tests
+./mvnw clean package -DskipTests                          # Build JAR
+docker-compose up -d                                      # Start with Docker
+```
+
+### Useful URLs (local development)
+- API: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- Actuator Health: http://localhost:8080/actuator/health
+- Prometheus metrics: http://localhost:8080/actuator/prometheus

@@ -28,12 +28,18 @@ cp src/main/resources/application-local.yml.template src/main/resources/applicat
 ./mvnw clean install
 
 ### Running the Application
-# Development mode with local profile
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-# Or using Makefile
-make run
-# Production mode
+# Development mode with local profile (default)
+./mvnw spring-boot:run
+# Or explicitly specify the local profile
+./mvnw spring-boot:run -Plocal
+# Development profile
+./mvnw spring-boot:run -Pdev
+# Production profile
+./mvnw spring-boot:run -Pprod
+# Or run the built JAR with a specific profile
 java -jar target/expense-tracker-api-1.0.0.jar --spring.profiles.active=prod
+
+**Note:** Maven profiles are configured in pom.xml (local, dev, prod). The local profile is active by default for development.
 
 ### Testing
 # Run all tests
@@ -58,10 +64,12 @@ java -jar target/expense-tracker-api-1.0.0.jar --spring.profiles.active=prod
 ./mvnw flyway:clean -Dflyway.cleanDisabled=false
 
 ### Build & Deploy
-# Build without tests
+# Build without tests (uses default local profile)
 ./mvnw clean package -DskipTests
 # Build with tests
 ./mvnw clean package
+# Build with specific profile
+./mvnw clean package -Pprod -DskipTests
 # Build Docker image
 docker build -t expense-tracker-api:latest .
 # Run with Docker Compose
@@ -286,10 +294,16 @@ Controller → Service → Repository → Database
 ## Important Notes
 
 ### Configuration
+- **Maven Profiles**: Three profiles available in pom.xml:
+  - `local` (default) - For local development
+  - `dev` - For development environment
+  - `prod` - For production environment
 - **Never commit** `application-local.yml` — it contains secrets (git-ignored by default)
+- **Never commit** `.claude/` — contains local Claude Code settings (git-ignored)
 - Use environment variables for sensitive data in production (`JWT_SECRET`, `DATABASE_URL`, etc.)
 - JWT secret must be at least 256 bits (32 characters) in production
 - Default JWT expiration: 24 hours (access token), 7 days (refresh token)
+- Error message configuration: `server.error.include-message: always` (Spring Boot 3.x standard)
 
 ### Database Migrations
 - Migration files are **immutable** — never edit existing migrations
@@ -317,6 +331,7 @@ Controller → Service → Repository → Database
 - Security configuration
 - API documentation (Swagger UI)
 - Global exception handling
+- Maven profiles (local, dev, prod) with environment-specific configurations
 
 ⏳ **Partially Implemented (Entities/Repositories exist, no endpoints):**
 - Budgets
@@ -333,10 +348,13 @@ Controller → Service → Repository → Database
 
 ### Common Commands Quick Reference
 ```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local  # Run locally
-./mvnw test                                               # Run tests
-./mvnw clean package -DskipTests                          # Build JAR
-docker-compose up -d                                      # Start with Docker
+./mvnw spring-boot:run              # Run with local profile (default)
+./mvnw spring-boot:run -Pdev        # Run with dev profile
+./mvnw spring-boot:run -Pprod       # Run with prod profile
+./mvnw test                         # Run tests
+./mvnw clean package -DskipTests    # Build JAR
+./mvnw clean package -Pprod         # Build JAR with prod profile
+docker-compose up -d                # Start with Docker
 ```
 
 ### Useful URLs (local development)

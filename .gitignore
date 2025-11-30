@@ -20,6 +20,9 @@ buildNumber.properties
 # Local configuration (contains secrets)
 src/main/resources/application-local.yml
 
+# Claude Code
+.claude/
+
 # Eclipse
 .classpath
 .project

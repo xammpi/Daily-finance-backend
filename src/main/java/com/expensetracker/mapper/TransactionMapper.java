@@ -12,20 +12,18 @@ import org.mapstruct.MappingTarget;
 public interface TransactionMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "account", ignore = true)
+    @Mapping(target = "user", ignore = true)
     @Mapping(target = "category", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Transaction toEntity(TransactionRequest request);
 
-    @Mapping(source = "account.id", target = "accountId")
-    @Mapping(source = "account.name", target = "accountName")
     @Mapping(source = "category.id", target = "categoryId")
     @Mapping(source = "category.name", target = "categoryName")
     TransactionResponse toResponse(Transaction transaction);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "account", ignore = true)
+    @Mapping(target = "user", ignore = true)
     @Mapping(target = "category", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

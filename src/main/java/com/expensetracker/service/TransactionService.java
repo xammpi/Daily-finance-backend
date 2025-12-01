@@ -2,15 +2,15 @@ package com.expensetracker.service;
 
 import com.expensetracker.dto.transaction.TransactionRequest;
 import com.expensetracker.dto.transaction.TransactionResponse;
-import com.expensetracker.entity.Account;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.Transaction;
+import com.expensetracker.entity.User;
 import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
 import com.expensetracker.mapper.TransactionMapper;
-import com.expensetracker.repository.AccountRepository;
 import com.expensetracker.repository.CategoryRepository;
 import com.expensetracker.repository.TransactionRepository;
+import com.expensetracker.repository.UserRepository;
 import com.expensetracker.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,7 +26,7 @@ import java.math.BigDecimal;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
-    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionMapper transactionMapper;
 
@@ -40,12 +40,8 @@ public class TransactionService {
     public TransactionResponse createTransaction(TransactionRequest request) {
         Long userId = getCurrentUserId();
 
-        Account account = accountRepository.findById(request.getAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-
-        if (!account.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Account does not belong to current user");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -55,13 +51,13 @@ public class TransactionService {
         }
 
         Transaction transaction = transactionMapper.toEntity(request);
-        transaction.setAccount(account);
+        transaction.setUser(user);
         transaction.setCategory(category);
 
-        updateAccountBalance(account, transaction.getAmount(), transaction.getType());
+        updateUserBalance(user, transaction.getAmount(), transaction.getType());
 
         transaction = transactionRepository.save(transaction);
-        accountRepository.save(account);
+        userRepository.save(user);
 
         return transactionMapper.toResponse(transaction);
     }
@@ -79,7 +75,7 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
-        if (!transaction.getAccount().getUser().getId().equals(userId)) {
+        if (!transaction.getUser().getId().equals(userId)) {
             throw new BadRequestException("Transaction does not belong to current user");
         }
 
@@ -92,25 +88,15 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
-        if (!transaction.getAccount().getUser().getId().equals(userId)) {
+        if (!transaction.getUser().getId().equals(userId)) {
             throw new BadRequestException("Transaction does not belong to current user");
         }
 
-        Account oldAccount = transaction.getAccount();
+        User user = transaction.getUser();
         BigDecimal oldAmount = transaction.getAmount();
         Transaction.TransactionType oldType = transaction.getType();
 
-        reverseAccountBalance(oldAccount, oldAmount, oldType);
-
-        if (!request.getAccountId().equals(oldAccount.getId())) {
-            Account newAccount = accountRepository.findById(request.getAccountId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-
-            if (!newAccount.getUser().getId().equals(userId)) {
-                throw new BadRequestException("Account does not belong to current user");
-            }
-            transaction.setAccount(newAccount);
-        }
+        reverseUserBalance(user, oldAmount, oldType);
 
         if (!request.getCategoryId().equals(transaction.getCategory().getId())) {
             Category newCategory = categoryRepository.findById(request.getCategoryId())
@@ -123,9 +109,10 @@ public class TransactionService {
         }
 
         transactionMapper.updateEntityFromRequest(request, transaction);
-        updateAccountBalance(transaction.getAccount(), transaction.getAmount(), transaction.getType());
+        updateUserBalance(user, transaction.getAmount(), transaction.getType());
 
         transaction = transactionRepository.save(transaction);
+        userRepository.save(user);
         return transactionMapper.toResponse(transaction);
     }
 
@@ -135,27 +122,29 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
-        if (!transaction.getAccount().getUser().getId().equals(userId)) {
+        if (!transaction.getUser().getId().equals(userId)) {
             throw new BadRequestException("Transaction does not belong to current user");
         }
 
-        reverseAccountBalance(transaction.getAccount(), transaction.getAmount(), transaction.getType());
+        User user = transaction.getUser();
+        reverseUserBalance(user, transaction.getAmount(), transaction.getType());
+        userRepository.save(user);
         transactionRepository.delete(transaction);
     }
 
-    private void updateAccountBalance(Account account, BigDecimal amount, Transaction.TransactionType type) {
+    private void updateUserBalance(User user, BigDecimal amount, Transaction.TransactionType type) {
         if (type == Transaction.TransactionType.INCOME) {
-            account.setBalance(account.getBalance().add(amount));
+            user.setBalance(user.getBalance().add(amount));
         } else {
-            account.setBalance(account.getBalance().subtract(amount));
+            user.setBalance(user.getBalance().subtract(amount));
         }
     }
 
-    private void reverseAccountBalance(Account account, BigDecimal amount, Transaction.TransactionType type) {
+    private void reverseUserBalance(User user, BigDecimal amount, Transaction.TransactionType type) {
         if (type == Transaction.TransactionType.INCOME) {
-            account.setBalance(account.getBalance().subtract(amount));
+            user.setBalance(user.getBalance().subtract(amount));
         } else {
-            account.setBalance(account.getBalance().add(amount));
+            user.setBalance(user.getBalance().add(amount));
         }
     }
 }

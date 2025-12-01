@@ -15,8 +15,6 @@ public class TransactionResponse {
     private LocalDate date;
     private String description;
     private String notes;
-    private Long accountId;
-    private String accountName;
     private Long categoryId;
     private String categoryName;
     private LocalDateTime createdAt;

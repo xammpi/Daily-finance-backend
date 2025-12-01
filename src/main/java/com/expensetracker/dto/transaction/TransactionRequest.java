@@ -25,9 +25,6 @@ public class TransactionRequest {
 
     private String notes;
 
-    @NotNull(message = "Account ID is required")
-    private Long accountId;
-
     @NotNull(message = "Category ID is required")
     private Long categoryId;
 }

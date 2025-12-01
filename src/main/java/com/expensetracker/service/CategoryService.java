@@ -41,16 +41,6 @@ public class CategoryService {
         Category category = categoryMapper.toEntity(request);
         category.setUser(user);
 
-        if (request.getParentId() != null) {
-            Category parent = categoryRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
-
-            if (!parent.getUser().getId().equals(userId)) {
-                throw new BadRequestException("Parent category does not belong to current user");
-            }
-            category.setParent(parent);
-        }
-
         category = categoryRepository.save(category);
         return categoryMapper.toResponse(category);
     }
@@ -84,22 +74,6 @@ public class CategoryService {
 
         if (!category.getUser().getId().equals(userId)) {
             throw new BadRequestException("Category does not belong to current user");
-        }
-
-        if (request.getParentId() != null) {
-            if (request.getParentId().equals(id)) {
-                throw new BadRequestException("Category cannot be its own parent");
-            }
-
-            Category parent = categoryRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
-
-            if (!parent.getUser().getId().equals(userId)) {
-                throw new BadRequestException("Parent category does not belong to current user");
-            }
-            category.setParent(parent);
-        } else {
-            category.setParent(null);
         }
 
         categoryMapper.updateEntityFromRequest(request, category);

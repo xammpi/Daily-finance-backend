@@ -3,13 +3,13 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов и доходов. Приложение предоставляет функционал управления транзакциями, категориями, счетами, бюджетами и повторяющимися платежами с JWT-аутентификацией.
+Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов и доходов. Приложение предоставляет функционал управления транзакциями, категориями, балансом пользователя и повторяющимися платежами с JWT-аутентификацией.
 
 ### Key Features
 - User authentication (JWT-based)
-- Transaction management (expenses/income)
+- User balance management with multi-currency support (20 currencies)
+- Transaction management (expenses/income) with automatic balance updates
 - Category management (simplified structure)
-- Multiple accounts (cards, cash, etc.)
 
 ### Planned Features (Entities exist, endpoints not yet implemented)
 - Budgets and recurring transactions
@@ -106,21 +106,19 @@ src/
 │   │   │   ├── CorsConfig.java              # CORS configuration
 │   │   │   ├── OpenApiConfig.java           # Swagger/OpenAPI setup
 │   │   │   └── SecurityConfig.java          # Spring Security + JWT
-│   │   ├── controller/       # REST controllers (4 implemented)
-│   │   │   ├── AccountController.java
+│   │   ├── controller/       # REST controllers (3 implemented)
 │   │   │   ├── AuthController.java
 │   │   │   ├── CategoryController.java
 │   │   │   └── TransactionController.java
 │   │   ├── dto/              # Data Transfer Objects
-│   │   │   ├── account/      # AccountRequest, AccountResponse
 │   │   │   ├── auth/         # LoginRequest, RegisterRequest, AuthResponse
 │   │   │   ├── budget/       # BudgetRequest, BudgetResponse (not yet used)
 │   │   │   ├── category/     # CategoryRequest, CategoryResponse
 │   │   │   └── transaction/  # TransactionRequest, TransactionResponse
-│   │   ├── entity/           # JPA entities (6 total)
-│   │   │   ├── Account.java
+│   │   ├── entity/           # JPA entities (5 total + 1 enum)
 │   │   │   ├── Budget.java
 │   │   │   ├── Category.java
+│   │   │   ├── Currency.java (enum)
 │   │   │   ├── RecurringTransaction.java
 │   │   │   ├── Transaction.java
 │   │   │   └── User.java
@@ -129,13 +127,11 @@ src/
 │   │   │   ├── ErrorResponse.java
 │   │   │   ├── GlobalExceptionHandler.java
 │   │   │   └── ResourceNotFoundException.java
-│   │   ├── mapper/           # MapStruct mappers (4 implemented)
-│   │   │   ├── AccountMapper.java
+│   │   ├── mapper/           # MapStruct mappers (3 implemented)
 │   │   │   ├── BudgetMapper.java (entity mapper ready)
 │   │   │   ├── CategoryMapper.java
 │   │   │   └── TransactionMapper.java
-│   │   ├── repository/       # Spring Data JPA repositories (6 total)
-│   │   │   ├── AccountRepository.java
+│   │   ├── repository/       # Spring Data JPA repositories (5 total)
 │   │   │   ├── BudgetRepository.java
 │   │   │   ├── CategoryRepository.java
 │   │   │   ├── RecurringTransactionRepository.java
@@ -146,8 +142,7 @@ src/
 │   │   │   ├── JwtAuthenticationFilter.java
 │   │   │   ├── JwtTokenProvider.java
 │   │   │   └── UserPrincipal.java
-│   │   └── service/          # Business logic services (4 implemented)
-│   │       ├── AccountService.java
+│   │   └── service/          # Business logic services (3 implemented)
 │   │       ├── AuthService.java
 │   │       ├── CategoryService.java
 │   │       └── TransactionService.java
@@ -157,12 +152,13 @@ src/
 │       ├── application-prod.yml             # Production profile
 │       └── db/migration/                    # Flyway SQL migrations
 │           ├── V1__create_users_table.sql
-│           ├── V2__create_accounts_table.sql
+│           ├── V2__create_accounts_table.sql (deprecated)
 │           ├── V3__create_categories_table.sql
 │           ├── V4__create_transactions_table.sql
 │           ├── V5__create_budgets_table.sql
 │           ├── V6__create_recurring_transactions_table.sql
-│           └── V7__refactor_categories_table.sql
+│           ├── V7__refactor_categories_table.sql
+│           └── V8__remove_accounts_add_balance_to_users.sql
 └── test/                    # Test structure (to be implemented)
     └── java/com/expensetracker/
 ```
@@ -171,44 +167,41 @@ src/
 
 **Core Entities (All tables created via Flyway migrations):**
 
-1. **users** - User accounts with authentication data
-   - Fields: id, email, username, password (BCrypt), first_name, last_name, enabled, created_at, updated_at
+1. **users** - User accounts with authentication and balance management
+   - Fields: id, email, username, password (BCrypt), first_name, last_name, enabled, balance, currency, created_at, updated_at
    - Indexes: email, username (unique)
+   - V8 migration added: balance (default 0.00), currency (default USD)
+   - Currency enum: USD, EUR, GBP, JPY, CNY, RUB, UAH, PLN, CHF, CAD, AUD, BRL, INR, KRW, MXN, SEK, NOK, DKK, TRY, ZAR
 
-2. **accounts** - Financial accounts (bank cards, cash, etc.)
-   - Fields: id, name, type (enum), balance, currency, description, active, user_id, created_at, updated_at
-   - Types: CASH, BANK_ACCOUNT, CREDIT_CARD, DEBIT_CARD, SAVINGS, INVESTMENT, OTHER
-   - Indexes: user_id, type, active
-
-3. **categories** - Transaction categories (simplified structure)
+2. **categories** - Transaction categories (simplified structure)
    - Fields: id, name, description, user_id, created_at, updated_at
    - Simple flat structure without hierarchy
    - Indexes: user_id
    - Note: V7 migration removed unused fields (type, icon, color, parent_id)
 
-4. **transactions** - Income/expense records
-   - Fields: id, amount, type (INCOME/EXPENSE), date, description, notes, account_id, category_id, created_at, updated_at
-   - Automatically updates account balance on create/update/delete
-   - Indexes: account_id, category_id, date, type, (date + type composite)
+3. **transactions** - Income/expense records
+   - Fields: id, amount, type (INCOME/EXPENSE), date, description, notes, user_id, category_id, created_at, updated_at
+   - Automatically updates user balance on create/update/delete
+   - Indexes: user_id, category_id, date, type, (date + type composite)
+   - Note: V8 migration changed account_id to user_id
 
-5. **budgets** - Spending limits per category/period
+4. **budgets** - Spending limits per category/period
    - Fields: id, name, amount, period (enum), start_date, end_date, active, category_id, user_id, created_at, updated_at
    - Periods: DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY, CUSTOM
    - Indexes: user_id, category_id, active, period
    - Note: Entity and repository exist, endpoints not yet implemented
 
-6. **recurring_transactions** - Subscriptions and recurring payments
-   - Fields: id, name, amount, type, frequency, start_date, end_date, next_occurrence, active, description, user_id, account_id, category_id, created_at, updated_at
+5. **recurring_transactions** - Subscriptions and recurring payments
+   - Fields: id, name, amount, type, frequency, start_date, end_date, next_occurrence, active, description, user_id, category_id, created_at, updated_at
    - Frequency: DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, YEARLY
    - Indexes: user_id, active, next_occurrence
    - Note: Entity and repository exist, endpoints not yet implemented
 
 **Entity Relationships:**
-- User → Accounts (1:N)
+- User → Transactions (1:N)
 - User → Categories (1:N)
 - User → Budgets (1:N)
 - User → RecurringTransactions (1:N)
-- Account → Transactions (1:N)
 - Category → Transactions (1:N)
 - Category → Budgets (1:N)
 
@@ -237,13 +230,6 @@ Categories (Authenticated):
 - GET    /api/v1/categories/{id}   # Get category by ID
 - PUT    /api/v1/categories/{id}   # Update category
 - DELETE /api/v1/categories/{id}   # Delete category
-
-Accounts (Authenticated):
-- GET    /api/v1/accounts          # List all user accounts
-- POST   /api/v1/accounts          # Create account
-- GET    /api/v1/accounts/{id}     # Get account by ID
-- PUT    /api/v1/accounts/{id}     # Update account
-- DELETE /api/v1/accounts/{id}     # Delete account
 
 ### Key Patterns & Implementation Details
 
@@ -310,7 +296,7 @@ Controller → Service → Repository → Database
 - Naming convention: `V{version}__{description}.sql` (e.g., `V1__create_users_table.sql`)
 - Migrations run automatically on startup (Flyway enabled)
 - Always test migrations on a copy of production data before deploying
-- Current version: V7 (latest: refactor categories table to remove unused fields)
+- Current version: V8 (latest: remove accounts table, add balance/currency to users)
 
 ### Code Conventions
 - **SOLID principles**: Single responsibility, dependency injection via constructor
@@ -324,10 +310,10 @@ Controller → Service → Repository → Database
 ### Current Implementation Status
 ✅ **Fully Implemented:**
 - User authentication (register, login with JWT)
-- Transaction CRUD with account balance management
-- Account CRUD
+- User balance management with multi-currency support (20 currencies)
+- Transaction CRUD with automatic user balance updates
 - Category CRUD (simplified flat structure)
-- Database schema with 7 migrations (V1-V7)
+- Database schema with 8 migrations (V1-V8)
 - Security configuration with JWT bearer token authentication
 - API documentation (Swagger UI)
 - Global exception handling
@@ -346,6 +332,11 @@ Controller → Service → Repository → Database
 - Email notifications
 - File uploads (receipts/attachments)
 - Unit/integration tests
+
+**Recent Major Changes:**
+- V8 Migration (2024): Removed Account entity entirely, moved balance/currency to User
+- V7 Migration (2024): Simplified Category entity (removed type, icon, color, parent_id)
+- Transactions now directly update User balance instead of Account balance
 
 ### Common Commands Quick Reference
 ```bash

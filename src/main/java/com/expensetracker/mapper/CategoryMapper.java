@@ -12,23 +12,17 @@ import org.mapstruct.MappingTarget;
 public interface CategoryMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "parent", ignore = true)
     @Mapping(target = "user", ignore = true)
-    @Mapping(target = "subcategories", ignore = true)
     @Mapping(target = "transactions", ignore = true)
     @Mapping(target = "budgets", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Category toEntity(CategoryRequest request);
 
-    @Mapping(source = "parent.id", target = "parentId")
-    @Mapping(source = "parent.name", target = "parentName")
     CategoryResponse toResponse(Category category);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "parent", ignore = true)
     @Mapping(target = "user", ignore = true)
-    @Mapping(target = "subcategories", ignore = true)
     @Mapping(target = "transactions", ignore = true)
     @Mapping(target = "budgets", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

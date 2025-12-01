@@ -31,18 +31,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                Long userId = tokenProvider.getUserIdFromToken(jwt);
+            if (StringUtils.hasText(jwt)) {
+                log.debug("JWT token found in request: {}", jwt.substring(0, Math.min(jwt.length(), 20)) + "...");
 
-                UserDetails userDetails = customUserDetailsService.loadUserById(userId);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                if (tokenProvider.validateToken(jwt)) {
+                    Long userId = tokenProvider.getUserIdFromToken(jwt);
+                    log.debug("Valid JWT token for user ID: {}", userId);
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UserDetails userDetails = customUserDetailsService.loadUserById(userId);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("User authenticated successfully: {}", userDetails.getUsername());
+                } else {
+                    log.warn("Invalid JWT token received");
+                }
+            } else {
+                log.debug("No JWT token found in request to: {}", request.getRequestURI());
             }
         } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
+            log.error("Could not set user authentication in security context for request: {} - Error: {}",
+                     request.getRequestURI(), ex.getMessage(), ex);
         }
 
         filterChain.doFilter(request, response);

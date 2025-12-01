@@ -8,7 +8,7 @@ Daily Finance Backend — production-ready REST API для отслеживан�
 ### Key Features
 - User authentication (JWT-based)
 - Transaction management (expenses/income)
-- Categories with hierarchy support
+- Category management (simplified structure)
 - Multiple accounts (cards, cash, etc.)
 
 ### Planned Features (Entities exist, endpoints not yet implemented)
@@ -155,14 +155,14 @@ src/
 │       ├── application.yml                  # Main configuration
 │       ├── application-local.yml.template   # Local profile template
 │       ├── application-prod.yml             # Production profile
-│       ├── db/migration/                    # Flyway SQL migrations
-│       │   ├── V1__create_users_table.sql
-│       │   ├── V2__create_accounts_table.sql
-│       │   ├── V3__create_categories_table.sql
-│       │   ├── V4__create_transactions_table.sql
-│       │   ├── V5__create_budgets_table.sql
-│       │   └── V6__create_recurring_transactions_table.sql
-│       └── messages.properties              # Validation messages
+│       └── db/migration/                    # Flyway SQL migrations
+│           ├── V1__create_users_table.sql
+│           ├── V2__create_accounts_table.sql
+│           ├── V3__create_categories_table.sql
+│           ├── V4__create_transactions_table.sql
+│           ├── V5__create_budgets_table.sql
+│           ├── V6__create_recurring_transactions_table.sql
+│           └── V7__refactor_categories_table.sql
 └── test/                    # Test structure (to be implemented)
     └── java/com/expensetracker/
 ```
@@ -180,10 +180,11 @@ src/
    - Types: CASH, BANK_ACCOUNT, CREDIT_CARD, DEBIT_CARD, SAVINGS, INVESTMENT, OTHER
    - Indexes: user_id, type, active
 
-3. **categories** - Transaction categories (hierarchical, with parent_id)
-   - Fields: id, name, type (INCOME/EXPENSE), icon, color, description, parent_id, user_id, created_at, updated_at
-   - Supports nested categories via self-referential parent_id
-   - Indexes: user_id, type, parent_id
+3. **categories** - Transaction categories (simplified structure)
+   - Fields: id, name, description, user_id, created_at, updated_at
+   - Simple flat structure without hierarchy
+   - Indexes: user_id
+   - Note: V7 migration removed unused fields (type, icon, color, parent_id)
 
 4. **transactions** - Income/expense records
    - Fields: id, amount, type (INCOME/EXPENSE), date, description, notes, account_id, category_id, created_at, updated_at
@@ -210,7 +211,6 @@ src/
 - Account → Transactions (1:N)
 - Category → Transactions (1:N)
 - Category → Budgets (1:N)
-- Category → Category (self-referential for hierarchy)
 
 ### API Architecture
 **Style:** RESTful API with JSON payloads
@@ -233,7 +233,7 @@ Transactions (Authenticated):
 
 Categories (Authenticated):
 - GET    /api/v1/categories        # List all user categories
-- POST   /api/v1/categories        # Create category (supports parent_id for hierarchy)
+- POST   /api/v1/categories        # Create category (name, description)
 - GET    /api/v1/categories/{id}   # Get category by ID
 - PUT    /api/v1/categories/{id}   # Update category
 - DELETE /api/v1/categories/{id}   # Delete category
@@ -274,8 +274,8 @@ Controller → Service → Repository → Database
 **4. Validation Strategy**
 - Request DTOs validated with Jakarta Validation annotations (@NotNull, @NotBlank, @Email, @Positive, etc.)
 - Validation triggers automatically via @Valid in controllers
-- Validation messages externalized to `messages.properties`
 - Field-level validation with detailed error responses
+- Default validation messages used (no custom messages.properties file)
 
 **5. Security Implementation**
 - **Authentication**: Stateless JWT (no sessions)
@@ -310,7 +310,7 @@ Controller → Service → Repository → Database
 - Naming convention: `V{version}__{description}.sql` (e.g., `V1__create_users_table.sql`)
 - Migrations run automatically on startup (Flyway enabled)
 - Always test migrations on a copy of production data before deploying
-- Current version: V6 (6 tables created)
+- Current version: V7 (latest: refactor categories table to remove unused fields)
 
 ### Code Conventions
 - **SOLID principles**: Single responsibility, dependency injection via constructor
@@ -326,12 +326,13 @@ Controller → Service → Repository → Database
 - User authentication (register, login with JWT)
 - Transaction CRUD with account balance management
 - Account CRUD
-- Category CRUD with hierarchy support
-- Database schema (all 6 tables)
-- Security configuration
+- Category CRUD (simplified flat structure)
+- Database schema with 7 migrations (V1-V7)
+- Security configuration with JWT bearer token authentication
 - API documentation (Swagger UI)
 - Global exception handling
 - Maven profiles (local, dev, prod) with environment-specific configurations
+- CORS configuration for frontend integration
 
 ⏳ **Partially Implemented (Entities/Repositories exist, no endpoints):**
 - Budgets

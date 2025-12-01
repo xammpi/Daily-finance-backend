@@ -14,21 +14,18 @@ import java.util.List;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    @Query("SELECT t FROM Transaction t WHERE t.account.user.id = :userId")
+    @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId ORDER BY t.date DESC")
     Page<Transaction> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
-    @Query("SELECT t FROM Transaction t WHERE t.account.user.id = :userId AND t.date BETWEEN :startDate AND :endDate")
+    @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate")
     List<Transaction> findByUserIdAndDateBetween(@Param("userId") Long userId,
                                                    @Param("startDate") LocalDate startDate,
                                                    @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT t FROM Transaction t WHERE t.account.id = :accountId ORDER BY t.date DESC")
-    Page<Transaction> findByAccountId(@Param("accountId") Long accountId, Pageable pageable);
-
     @Query("SELECT t FROM Transaction t WHERE t.category.id = :categoryId ORDER BY t.date DESC")
     Page<Transaction> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
-    @Query("SELECT t FROM Transaction t WHERE t.account.user.id = :userId AND t.type = :type")
+    @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId AND t.type = :type")
     List<Transaction> findByUserIdAndType(@Param("userId") Long userId,
                                           @Param("type") Transaction.TransactionType type);
 }

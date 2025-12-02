@@ -31,9 +31,6 @@ public class Category {
     private User user;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Transaction> transactions = new ArrayList<>();
-
-    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Budget> budgets = new ArrayList<>();
 
     @CreationTimestamp

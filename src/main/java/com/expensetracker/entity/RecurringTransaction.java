@@ -28,10 +28,6 @@ public class RecurringTransaction {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Transaction.TransactionType type;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private RecurrenceFrequency frequency;
 
     @Column(nullable = false)

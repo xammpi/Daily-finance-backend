@@ -11,21 +11,17 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "expenses")
 @Getter
 @Setter
-public class Transaction {
+public class Expense {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TransactionType type;
 
     @Column(nullable = false)
     private LocalDate date;
@@ -33,10 +29,7 @@ public class Transaction {
     @Column(length = 255)
     private String description;
 
-    @Column(length = 500)
-    private String notes;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -51,9 +44,4 @@ public class Transaction {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    public enum TransactionType {
-        INCOME,
-        EXPENSE
-    }
 }

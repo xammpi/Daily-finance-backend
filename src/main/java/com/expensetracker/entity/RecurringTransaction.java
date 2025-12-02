@@ -3,22 +3,15 @@ package com.expensetracker.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "recurring_transactions")
 @Getter
 @Setter
-public class RecurringTransaction {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class RecurringTransaction extends BaseEntity {
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -54,14 +47,6 @@ public class RecurringTransaction {
 
     @Column(name = "category_id")
     private Long categoryId;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 
     public enum RecurrenceFrequency {
         DAILY,

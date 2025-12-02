@@ -64,5 +64,5 @@ public class User {
     private List<RecurringTransaction> recurringTransactions = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Transaction> transactions = new ArrayList<>();
+    private List<Expense> expenses = new ArrayList<>();
 }

@@ -15,8 +15,6 @@ public interface CategoryMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "transactions", ignore = true)
     @Mapping(target = "budgets", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     Category toEntity(CategoryRequest request);
 
     CategoryResponse toResponse(Category category);
@@ -25,7 +23,5 @@ public interface CategoryMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "transactions", ignore = true)
     @Mapping(target = "budgets", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     void updateEntityFromRequest(CategoryRequest request, @MappingTarget Category category);
 }

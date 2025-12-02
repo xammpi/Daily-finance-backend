@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов. Приложение предоставляет функционал управления расходами, категориями, балансом пользователя и повторяющимися платежами с JWT-аутентификацией.
 
+**For Frontend Developers:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for comprehensive API reference with examples.
+
 ### Key Features
 - User authentication (JWT-based)
 - User balance management with deposit/withdraw functionality

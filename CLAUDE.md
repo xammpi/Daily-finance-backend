@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов. Приложение предоставляет функционал управления расходами, категориями, балансом пользователя и повторяющимися платежами с JWT-аутентификацией.
+Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов. Приложение предоставляет функционал управления расходами, категориями и балансом пользователя с JWT-аутентификацией.
 
 **For Frontend Developers:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for comprehensive API reference with examples.
 
@@ -15,8 +15,7 @@ Daily Finance Backend — production-ready REST API для отслеживан�
 - Category management (simplified flat structure)
 - Balance summary with monthly expense calculations
 
-### Planned Features (Entities exist, endpoints not yet implemented)
-- Budgets and recurring transactions
+### Planned Features
 - Analytics and reporting
 - CSV export
 
@@ -117,31 +116,25 @@ src/
 │   │   │   └── UserController.java
 │   │   ├── dto/              # Data Transfer Objects
 │   │   │   ├── auth/         # LoginRequest, RegisterRequest, AuthResponse
-│   │   │   ├── budget/       # BudgetRequest, BudgetResponse (not yet used)
 │   │   │   ├── category/     # CategoryRequest, CategoryResponse
 │   │   │   ├── expense/      # ExpenseRequest, ExpenseResponse
 │   │   │   └── user/         # DepositRequest, UserProfileResponse, BalanceSummaryResponse
-│   │   ├── entity/           # JPA entities (5 total + 1 enum)
-│   │   │   ├── Budget.java
+│   │   ├── entity/           # JPA entities (3 total + 1 enum)
 │   │   │   ├── Category.java
 │   │   │   ├── Currency.java (enum)
 │   │   │   ├── Expense.java
-│   │   │   ├── RecurringTransaction.java
 │   │   │   └── User.java
 │   │   ├── exception/        # Exception handling
 │   │   │   ├── BadRequestException.java
 │   │   │   ├── ErrorResponse.java
 │   │   │   ├── GlobalExceptionHandler.java
 │   │   │   └── ResourceNotFoundException.java
-│   │   ├── mapper/           # MapStruct mappers (3 implemented)
-│   │   │   ├── BudgetMapper.java (entity mapper ready)
+│   │   ├── mapper/           # MapStruct mappers (2 implemented)
 │   │   │   ├── CategoryMapper.java
 │   │   │   └── ExpenseMapper.java
-│   │   ├── repository/       # Spring Data JPA repositories (5 total)
-│   │   │   ├── BudgetRepository.java
+│   │   ├── repository/       # Spring Data JPA repositories (3 total)
 │   │   │   ├── CategoryRepository.java
 │   │   │   ├── ExpenseRepository.java
-│   │   │   ├── RecurringTransactionRepository.java
 │   │   │   └── UserRepository.java
 │   │   ├── security/         # JWT authentication
 │   │   │   ├── CustomUserDetailsService.java
@@ -162,12 +155,12 @@ src/
 │           ├── V2__create_accounts_table.sql (deprecated - removed in V8)
 │           ├── V3__create_categories_table.sql
 │           ├── V4__create_transactions_table.sql (deprecated - removed in V10)
-│           ├── V5__create_budgets_table.sql
-│           ├── V6__create_recurring_transactions_table.sql
+│           ├── V5__create_budgets_table.sql (deprecated - removed in V12)
+│           ├── V6__create_recurring_transactions_table.sql (deprecated - removed in V12)
 │           ├── V7__refactor_categories_table.sql
 │           ├── V8__remove_accounts_add_balance_to_users.sql
-│           ├── V9__create_expenses_table.sql
-│           └── V10__drop_transactions_table.sql
+│           ├── V11__drop_transactions_and_create_expenses.sql
+│           └── V12__drop_budgets_and_recurring_transactions.sql
 └── test/                    # Test structure (to be implemented)
     └── java/com/expensetracker/
 ```
@@ -193,27 +186,12 @@ src/
    - Automatically deducts from user balance on create
    - Adjusts balance on update/delete
    - Indexes: user_id, category_id, date, (user_id + date composite)
-   - Note: V9 migration created this table; V10 dropped old transactions table
-
-4. **budgets** - Spending limits per category/period
-   - Fields: id, name, amount, period (enum), start_date, end_date, active, category_id, user_id, created_at, updated_at
-   - Periods: DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY, CUSTOM
-   - Indexes: user_id, category_id, active, period
-   - Note: Entity and repository exist, endpoints not yet implemented
-
-5. **recurring_transactions** - Subscriptions and recurring payments
-   - Fields: id, name, amount, type, frequency, start_date, end_date, next_occurrence, active, description, user_id, category_id, created_at, updated_at
-   - Frequency: DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, YEARLY
-   - Indexes: user_id, active, next_occurrence
-   - Note: Entity and repository exist, endpoints not yet implemented
+   - Note: V11 migration created this table; V10 dropped old transactions table
 
 **Entity Relationships:**
 - User → Expenses (1:N)
 - User → Categories (1:N)
-- User → Budgets (1:N)
-- User → RecurringTransactions (1:N)
 - Category → Expenses (1:N)
-- Category → Budgets (1:N)
 
 ### API Architecture
 **Style:** RESTful API with JSON payloads
@@ -323,7 +301,7 @@ Controller → Service → Repository → Database
 - Naming convention: `V{version}__{description}.sql` (e.g., `V1__create_users_table.sql`)
 - Migrations run automatically on startup (Flyway enabled)
 - Always test migrations on a copy of production data before deploying
-- Current version: V10 (latest migrations: V9 creates expenses table, V10 drops transactions table)
+- Current version: V12 (latest migration: V12 drops budgets and recurring_transactions tables)
 
 ### Code Conventions
 - **SOLID principles**: Single responsibility, dependency injection via constructor
@@ -343,35 +321,30 @@ Controller → Service → Repository → Database
 - Expense tracking with automatic balance deduction
 - Monthly expense calculation and balance summary
 - Category CRUD (simplified flat structure)
-- Database schema with 10 migrations (V1-V10)
+- Database schema with 12 migrations (V1-V12)
 - Security configuration with JWT bearer token authentication
 - API documentation (Swagger UI)
 - Global exception handling
 - Maven profiles (local, dev, prod) with environment-specific configurations
 - CORS configuration for frontend integration
 
-⏳ **Partially Implemented (Entities/Repositories exist, no endpoints):**
-- Budgets
-- Recurring transactions
-
 ❌ **Not Yet Implemented:**
 - Analytics/statistics endpoints
 - CSV export functionality
-- Budget management endpoints
-- Recurring transaction management endpoints
 - Email notifications
 - File uploads (receipts/attachments)
 - Unit/integration tests
 
 **Recent Major Changes (December 2024):**
-- V10 Migration: Removed Transaction entity entirely, replaced with simpler Expense entity
-- V9 Migration: Created expenses table (amount, date, description, user, category)
+- V12 Migration: Removed Budget and RecurringTransaction entities and tables (simplified scope)
+- V11 Migration: Consolidated expense table creation (combined V9 and V10 into single migration)
 - V8 Migration: Removed Account entity entirely, moved balance/currency to User
 - V7 Migration: Simplified Category entity (removed type, icon, color, parent_id)
 - Architecture simplification: User → Expenses (instead of User → Accounts → Transactions)
 - Expenses only track spending (no INCOME/EXPENSE type), balance managed via deposits
 - Added UserService and UserController for balance operations
 - Balance summary endpoint shows current balance and monthly expenses
+- Removed budget and recurring transaction features to focus on core expense tracking
 
 ### Common Commands Quick Reference
 ```bash

@@ -13,13 +13,11 @@ public interface CategoryMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
-    @Mapping(target = "budgets", ignore = true)
     Category toEntity(CategoryRequest request);
 
     CategoryResponse toResponse(Category category);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
-    @Mapping(target = "budgets", ignore = true)
     void updateEntityFromRequest(CategoryRequest request, @MappingTarget Category category);
 }

@@ -6,12 +6,14 @@ import com.expensetracker.dto.expense.ExpenseResponse;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.Expense;
 import com.expensetracker.entity.User;
+import com.expensetracker.entity.Wallet;
 import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
 import com.expensetracker.mapper.ExpenseMapper;
 import com.expensetracker.repository.CategoryRepository;
 import com.expensetracker.repository.ExpenseRepository;
 import com.expensetracker.repository.UserRepository;
+import com.expensetracker.repository.WalletRepository;
 import com.expensetracker.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +29,7 @@ public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
     private final CategoryRepository categoryRepository;
     private final ExpenseMapper expenseMapper;
 
@@ -42,6 +45,11 @@ public class ExpenseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        Wallet wallet = user.getWallet();
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
+
         Category category = categoryRepository.findById((request.categoryId().longValue()))
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
@@ -49,15 +57,15 @@ public class ExpenseService {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        // Deduct expense amount from user balance
-        user.setBalance(user.getBalance().subtract(request.amount()));
+        // Deduct expense amount from wallet balance
+        wallet.subtractAmount(request.amount());
 
         Expense expense = expenseMapper.toEntity(request);
         expense.setUser(user);
         expense.setCategory(category);
 
         expense = expenseRepository.save(expense);
-        userRepository.save(user);
+        walletRepository.save(wallet);
 
         return expenseMapper.toResponse(expense);
     }
@@ -73,9 +81,13 @@ public class ExpenseService {
         }
 
         User user = expense.getUser();
+        Wallet wallet = user.getWallet();
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
 
         // Reverse the old expense amount (add it back)
-        user.setBalance(user.getBalance().add(expense.getAmount()));
+        wallet.addAmount(expense.getAmount());
 
         // Update expense fields
         expenseMapper.updateEntityFromRequest(request, expense);
@@ -90,10 +102,10 @@ public class ExpenseService {
         expense.setCategory(category);
 
         // Deduct the new expense amount
-        user.setBalance(user.getBalance().subtract(expense.getAmount()));
+        wallet.subtractAmount(expense.getAmount());
 
         expense = expenseRepository.save(expense);
-        userRepository.save(user);
+        walletRepository.save(wallet);
 
         return expenseMapper.toResponse(expense);
     }
@@ -130,11 +142,15 @@ public class ExpenseService {
         }
 
         User user = expense.getUser();
+        Wallet wallet = user.getWallet();
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
 
-        // Add the expense amount back to balance when deleting
-        user.setBalance(user.getBalance().add(expense.getAmount()));
+        // Add the expense amount back to wallet balance when deleting
+        wallet.addAmount(expense.getAmount());
 
-        userRepository.save(user);
+        walletRepository.save(wallet);
         expenseRepository.delete(expense);
     }
 

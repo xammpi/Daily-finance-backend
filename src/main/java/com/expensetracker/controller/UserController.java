@@ -3,7 +3,6 @@ package com.expensetracker.controller;
 import com.expensetracker.dto.user.BalanceSummaryResponse;
 import com.expensetracker.dto.user.DepositRequest;
 import com.expensetracker.dto.user.UserProfileResponse;
-import com.expensetracker.entity.Currency;
 import com.expensetracker.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -36,8 +35,8 @@ public class UserController {
 
     @PutMapping("/currency")
     @Operation(summary = "Update user currency preference")
-    public ResponseEntity<UserProfileResponse> updateCurrency(@RequestParam Currency currency) {
-        return ResponseEntity.ok(userService.updateCurrency(currency));
+    public ResponseEntity<UserProfileResponse> updateCurrency(@RequestParam Long currencyId) {
+        return ResponseEntity.ok(userService.updateCurrency(currencyId));
     }
 
     @GetMapping("/balance-summary")

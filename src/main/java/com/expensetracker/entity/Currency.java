@@ -1,40 +1,21 @@
 package com.expensetracker.entity;
 
-public enum Currency {
-    USD("US Dollar", "$"),
-    EUR("Euro", "€"),
-    GBP("British Pound", "£"),
-    JPY("Japanese Yen", "¥"),
-    CNY("Chinese Yuan", "¥"),
-    RUB("Russian Ruble", "₽"),
-    UAH("Ukrainian Hryvnia", "₴"),
-    PLN("Polish Zloty", "zł"),
-    CHF("Swiss Franc", "Fr"),
-    CAD("Canadian Dollar", "C$"),
-    AUD("Australian Dollar", "A$"),
-    BRL("Brazilian Real", "R$"),
-    INR("Indian Rupee", "₹"),
-    KRW("South Korean Won", "₩"),
-    MXN("Mexican Peso", "$"),
-    SEK("Swedish Krona", "kr"),
-    NOK("Norwegian Krone", "kr"),
-    DKK("Danish Krone", "kr"),
-    TRY("Turkish Lira", "₺"),
-    ZAR("South African Rand", "R");
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Getter;
 
-    private final String displayName;
-    private final String symbol;
+@Entity
+@Table(name = "currencies")
+@Getter
+public class Currency extends BaseEntity{
 
-    Currency(String displayName, String symbol) {
-        this.displayName = displayName;
-        this.symbol = symbol;
-    }
+    @Column(nullable = false, unique = true, length = 3)
+    private String code;
 
-    public String getDisplayName() {
-        return displayName;
-    }
+    @Column(nullable = false, length = 100)
+    private String name;
 
-    public String getSymbol() {
-        return symbol;
-    }
+    @Column(nullable = false, length = 5)
+    private String symbol;
 }

@@ -16,7 +16,8 @@ public record RegisterRequest(
         @Size(min = 6, max = 100, message = "Password must be at least 6 characters")
         String password,
         String firstName,
-        String lastName
+        String lastName,
+        Integer currencyId
 ) {
 
 

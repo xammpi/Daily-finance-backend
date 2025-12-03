@@ -3,8 +3,11 @@ package com.expensetracker.service;
 import com.expensetracker.dto.auth.AuthResponse;
 import com.expensetracker.dto.auth.LoginRequest;
 import com.expensetracker.dto.auth.RegisterRequest;
+import com.expensetracker.entity.Currency;
 import com.expensetracker.entity.User;
+import com.expensetracker.entity.Wallet;
 import com.expensetracker.exception.BadRequestException;
+import com.expensetracker.repository.CurrencyRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final CurrencyRepository currencyRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
@@ -35,6 +39,12 @@ public class AuthService {
             throw new BadRequestException("Username already exists");
         }
 
+        if (request.currencyId() == null) {
+            throw new BadRequestException("Currency id is required");
+        }
+        Currency currency = currencyRepository.findById(request.currencyId().longValue())
+                .orElseThrow(() -> new BadRequestException("Currency id not found"));
+
         User user = new User();
         user.setEmail(request.email());
         user.setUsername(request.username());
@@ -43,6 +53,12 @@ public class AuthService {
         user.setLastName(request.lastName());
         user.setEnabled(true);
 
+        Wallet wallet = new Wallet();
+        wallet.setCurrency(currency);
+        wallet.setUser(user);
+        user.setWallet(wallet);
+
+        // Save user with cascade to automatically save wallet
         user = userRepository.save(user);
 
         Authentication authentication = authenticationManager.authenticate(

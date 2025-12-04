@@ -6,7 +6,9 @@ import java.math.BigDecimal;
 
 public record BalanceSummaryResponse(
         BigDecimal currentBalance,
-        BigDecimal totalExpensesThisMonth,
+        BigDecimal todayExpenses,
+        BigDecimal weekExpenses,
+        BigDecimal monthExpenses,
         Currency currency
 ) {
 }

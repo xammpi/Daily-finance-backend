@@ -9,15 +9,24 @@ Daily Finance Backend — production-ready REST API для отслеживан�
 
 ### Key Features
 - User authentication (JWT-based)
-- User balance management with deposit/withdraw functionality
+- Wallet management with deposit/withdraw functionality
+- Direct wallet balance editing
 - Multi-currency support (20 currencies)
 - Expense tracking with automatic balance deduction
+- Balance validation (prevents negative balance)
 - Category management (simplified flat structure)
-- Balance summary with monthly expense calculations
+- Comprehensive expense statistics:
+  - Today, week, and month expenses
+  - Total expenses (all time)
+  - Average daily/weekly/monthly spending
+  - Comparison with previous periods
+  - Category-wise breakdowns with percentages
+- Low balance warnings
+- Detailed wallet information with transaction summaries
 
 ### Planned Features
-- Analytics and reporting
 - CSV export
+- Customizable low balance thresholds
 
 ## Development Commands
 
@@ -205,18 +214,23 @@ Authentication (Public):
 - POST   /api/v1/auth/register     # User registration
 - POST   /api/v1/auth/login        # Login, returns JWT
 
-User Profile & Balance (Authenticated):
+User Profile & Wallet (Authenticated):
 - GET    /api/v1/user/profile           # Get current user profile
-- POST   /api/v1/user/deposit           # Deposit money to balance
+- GET    /api/v1/user/wallet            # Get detailed wallet info (balance, totals, warnings)
+- POST   /api/v1/user/deposit           # Deposit money to wallet
+- POST   /api/v1/user/withdraw          # Withdraw money from wallet (with balance check)
+- PUT    /api/v1/user/balance           # Directly set/update wallet balance
 - PUT    /api/v1/user/currency          # Update currency preference
-- GET    /api/v1/user/balance-summary   # Get balance summary with monthly expenses
+- GET    /api/v1/user/balance-summary   # Get balance with today/week/month expenses
 
 Expenses (Authenticated):
-- GET    /api/v1/expenses          # List all user expenses
-- POST   /api/v1/expenses          # Create expense (deducts from balance)
-- GET    /api/v1/expenses/{id}     # Get expense by ID
-- PUT    /api/v1/expenses/{id}     # Update expense (adjusts balance)
-- DELETE /api/v1/expenses/{id}     # Delete expense (adds back to balance)
+- GET    /api/v1/expenses                      # List all user expenses
+- POST   /api/v1/expenses                      # Create expense (with balance validation)
+- GET    /api/v1/expenses/{id}                 # Get expense by ID
+- PUT    /api/v1/expenses/{id}                 # Update expense (adjusts balance)
+- DELETE /api/v1/expenses/{id}                 # Delete expense (adds back to balance)
+- GET    /api/v1/expenses/statistics           # Get comprehensive expense statistics
+- GET    /api/v1/expenses/statistics/by-category  # Get category-wise statistics (date range)
 
 Categories (Authenticated):
 - GET    /api/v1/categories        # List all user categories
@@ -266,21 +280,45 @@ Controller → Service → Repository → Database
 - **Public Endpoints**: /api/v1/auth/**, /actuator/health, /swagger-ui/**, /v3/api-docs/**
 - **Secured Endpoints**: All other /api/v1/** routes require Bearer token
 
-**6. Balance Management**
-- User balance automatically updated when expenses are created/updated/deleted
-- Creating expense: balance -= expense.amount
-- Updating expense: balance += oldAmount, balance -= newAmount
-- Deleting expense: balance += expense.amount
-- Deposit operation: balance += deposit.amount
+**6. Wallet & Balance Management**
+- Wallet balance automatically updated when expenses are created/updated/deleted
+- **Deposit**: Adds money to wallet (balance += deposit.amount)
+- **Withdraw**: Removes money from wallet with validation (balance >= withdraw.amount)
+- **Direct Update**: Allows setting wallet balance to any non-negative value
+- **Creating expense**: Validates sufficient balance, then deducts (balance -= expense.amount)
+- **Updating expense**: Reverses old amount, validates, applies new amount
+- **Deleting expense**: Adds amount back to wallet (balance += expense.amount)
+- **Balance Validation**: All operations that decrease balance check for sufficient funds
 - Service methods marked with @Transactional for ACID compliance
 - Rollback on exceptions to maintain data integrity
 
-**7. Monthly Expense Tracking**
-- BalanceSummaryResponse provides:
-  - currentBalance: User's current balance
-  - totalExpensesThisMonth: Sum of all expenses in current calendar month
-  - remainingBalance: Current balance (same as currentBalance, since expenses already deducted)
+**7. Expense Statistics & Analytics**
+- **BalanceSummaryResponse** provides:
+  - currentBalance: Current wallet balance
+  - todayExpenses: Total spent today
+  - weekExpenses: Total spent this week (Monday-Sunday)
+  - monthExpenses: Total spent this month
   - currency: User's selected currency
+
+- **ExpenseStatisticsResponse** provides comprehensive statistics:
+  - todayExpenses, weekExpenses, monthExpenses
+  - totalExpenses: All-time total
+  - averageDailyExpenses, averageWeeklyExpenses, averageMonthlyExpenses
+  - previousWeekExpenses, previousMonthExpenses: For comparison
+  - currency: User's selected currency
+
+- **CategoryStatisticsResponse** provides category breakdown:
+  - Date range (startDate, endDate)
+  - Total expenses for the period
+  - Per-category statistics: total amount, expense count, percentage
+  - Sorted by highest spending first
+
+- **WalletResponse** provides detailed wallet info:
+  - Current balance and currency
+  - Total deposits count and amount
+  - Total expenses count and amount
+  - Last transaction date
+  - Low balance warning (triggers when balance < 100)
 
 ## Important Notes
 
@@ -316,26 +354,46 @@ Controller → Service → Repository → Database
 ✅ **Fully Implemented:**
 - User authentication (register, login with JWT)
 - User profile management (get profile, update currency)
-- User balance management (deposit money, view balance)
+- Wallet management:
+  - Deposit money to wallet
+  - Withdraw money from wallet (with balance validation)
+  - Direct wallet balance editing
+  - Detailed wallet information endpoint
+  - Low balance warnings
 - Multi-currency support (20 currencies, user-selectable)
-- Expense tracking with automatic balance deduction
-- Monthly expense calculation and balance summary
+- Expense tracking:
+  - Create, read, update, delete expenses
+  - Automatic balance deduction with validation
+  - Prevents negative balance on expense creation
+- Comprehensive analytics and statistics:
+  - Balance summary (today, week, month expenses)
+  - Expense statistics (totals, averages, comparisons)
+  - Category-wise breakdown with percentages
+  - Date range filtering for statistics
 - Category CRUD (simplified flat structure)
 - Database schema with 12 migrations (V1-V12)
 - Security configuration with JWT bearer token authentication
 - API documentation (Swagger UI)
 - Global exception handling
+- Balance validation (prevents negative balance)
 - Maven profiles (local, dev, prod) with environment-specific configurations
 - CORS configuration for frontend integration
 
 ❌ **Not Yet Implemented:**
-- Analytics/statistics endpoints
 - CSV export functionality
 - Email notifications
 - File uploads (receipts/attachments)
 - Unit/integration tests
+- Customizable low balance thresholds
 
 **Recent Major Changes (December 2024):**
+- **NEW**: Added comprehensive expense statistics with averages and comparisons
+- **NEW**: Added category-wise statistics with percentage breakdowns
+- **NEW**: Added wallet details endpoint with transaction summaries
+- **NEW**: Added withdraw functionality with balance validation
+- **NEW**: Added direct wallet balance editing
+- **NEW**: Implemented balance validation to prevent negative balance
+- **NEW**: Added low balance warning system
 - V12 Migration: Removed Budget and RecurringTransaction entities and tables (simplified scope)
 - V11 Migration: Consolidated expense table creation (combined V9 and V10 into single migration)
 - V8 Migration: Removed Account entity entirely, moved balance/currency to User
@@ -343,7 +401,7 @@ Controller → Service → Repository → Database
 - Architecture simplification: User → Expenses (instead of User → Accounts → Transactions)
 - Expenses only track spending (no INCOME/EXPENSE type), balance managed via deposits
 - Added UserService and UserController for balance operations
-- Balance summary endpoint shows current balance and monthly expenses
+- Enhanced balance summary endpoint with today/week/month expenses
 - Removed budget and recurring transaction features to focus on core expense tracking
 
 ### Common Commands Quick Reference

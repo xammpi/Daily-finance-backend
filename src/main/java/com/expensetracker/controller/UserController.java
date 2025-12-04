@@ -1,8 +1,6 @@
 package com.expensetracker.controller;
 
-import com.expensetracker.dto.user.BalanceSummaryResponse;
-import com.expensetracker.dto.user.DepositRequest;
-import com.expensetracker.dto.user.UserProfileResponse;
+import com.expensetracker.dto.user.*;
 import com.expensetracker.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,9 +26,15 @@ public class UserController {
     }
 
     @PostMapping("/deposit")
-    @Operation(summary = "Deposit money to balance")
+    @Operation(summary = "Deposit money to wallet")
     public ResponseEntity<UserProfileResponse> depositMoney(@Valid @RequestBody DepositRequest request) {
         return ResponseEntity.ok(userService.depositMoney(request));
+    }
+
+    @PostMapping("/withdraw")
+    @Operation(summary = "Withdraw money from wallet")
+    public ResponseEntity<UserProfileResponse> withdrawMoney(@Valid @RequestBody WithdrawRequest request) {
+        return ResponseEntity.ok(userService.withdrawMoney(request));
     }
 
     @PutMapping("/currency")
@@ -39,9 +43,21 @@ public class UserController {
         return ResponseEntity.ok(userService.updateCurrency(currencyId));
     }
 
+    @PutMapping("/balance")
+    @Operation(summary = "Update wallet balance directly")
+    public ResponseEntity<UserProfileResponse> updateBalance(@Valid @RequestBody UpdateBalanceRequest request) {
+        return ResponseEntity.ok(userService.updateBalance(request));
+    }
+
     @GetMapping("/balance-summary")
-    @Operation(summary = "Get balance summary with monthly expenses")
+    @Operation(summary = "Get balance summary with expense statistics")
     public ResponseEntity<BalanceSummaryResponse> getBalanceSummary() {
         return ResponseEntity.ok(userService.getBalanceSummary());
+    }
+
+    @GetMapping("/wallet")
+    @Operation(summary = "Get detailed wallet information")
+    public ResponseEntity<WalletResponse> getWalletDetails() {
+        return ResponseEntity.ok(userService.getWalletDetails());
     }
 }

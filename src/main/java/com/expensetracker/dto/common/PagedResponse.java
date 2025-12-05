@@ -1,5 +1,7 @@
 package com.expensetracker.dto.common;
 
+import org.springframework.data.domain.Page;
+
 import java.util.List;
 
 public record PagedResponse<T>(
@@ -35,6 +37,23 @@ public record PagedResponse<T>(
                 isLast,
                 hasNext,
                 hasPrevious
+        );
+    }
+
+    /**
+     * Create PagedResponse from Spring Data Page
+     */
+    public static <T> PagedResponse<T> fromPage(Page<T> page) {
+        return new PagedResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast(),
+                page.hasNext(),
+                page.hasPrevious()
         );
     }
 }

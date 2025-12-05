@@ -1,7 +1,10 @@
 package com.expensetracker.service;
 
 
+import com.expensetracker.dto.common.FilterRequest;
 import com.expensetracker.dto.common.PagedResponse;
+import com.expensetracker.dto.common.SearchCriteria;
+import com.expensetracker.dto.common.SearchOperation;
 import com.expensetracker.dto.expense.*;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.Expense;
@@ -11,6 +14,7 @@ import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
 import com.expensetracker.mapper.ExpenseMapper;
 import com.expensetracker.repository.*;
+import com.expensetracker.specification.SpecificationBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -339,19 +343,49 @@ public class ExpenseService {
         );
     }
 
+    /**
+     * Generic search method using dynamic specifications
+     * Can filter by any field using any operation
+     *
+     * Example FilterRequest:
+     * {
+     *   "criteria": [
+     *     { "field": "amount", "operation": "GREATER_THAN", "value": "100" },
+     *     { "field": "date", "operation": "BETWEEN", "value": "2024-01-01", "valueTo": "2024-12-31" },
+     *     { "field": "description", "operation": "LIKE", "value": "grocery" },
+     *     { "field": "category.name", "operation": "EQUALS", "value": "Food" }
+     *   ],
+     *   "page": 0,
+     *   "size": 20,
+     *   "sortBy": "date",
+     *   "sortOrder": "DESC"
+     * }
+     */
     @Transactional(readOnly = true)
-    public PagedResponse<ExpenseResponse> filterExpenses(ExpenseFilterRequest filter) {
+    public PagedResponse<ExpenseResponse> searchExpenses(FilterRequest filterRequest) {
         Long userId = getCurrentUserId();
 
-        // Create specification for filtering
-        Specification<Expense> spec = ExpenseSpecification.filterExpenses(userId, filter);
+        // Build dynamic specification from criteria
+        Specification<Expense> spec = SpecificationBuilder.build(filterRequest);
 
-        // Create pageable with sorting by date descending (newest first)
-        Pageable pageable = PageRequest.of(
-                filter.getPage(),
-                filter.getSize(),
-                Sort.by(Sort.Direction.DESC, "date", "id")
-        );
+        // Always add user filter
+        Specification<Expense> userSpec = (root, query, cb) ->
+                cb.equal(root.get("user").get("id"), userId);
+
+        // Combine specifications
+        spec = spec == null ? userSpec : spec.and(userSpec);
+
+        // Create pageable
+        Pageable pageable = filterRequest.toPageRequest().toSpringPageRequest();
+
+        // If no sort specified, default to date descending
+        if (filterRequest.getSortBy() == null || filterRequest.getSortBy().isBlank()) {
+            pageable = PageRequest.of(
+                    filterRequest.getPage(),
+                    filterRequest.getSize(),
+                    Sort.by(Sort.Direction.DESC, "date")
+            );
+        }
 
         // Execute query
         Page<Expense> expensePage = expenseRepository.findAll(spec, pageable);

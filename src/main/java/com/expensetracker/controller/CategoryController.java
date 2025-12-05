@@ -2,6 +2,8 @@ package com.expensetracker.controller;
 
 import com.expensetracker.dto.category.CategoryRequest;
 import com.expensetracker.dto.category.CategoryResponse;
+import com.expensetracker.dto.common.FilterRequest;
+import com.expensetracker.dto.common.PagedResponse;
 import com.expensetracker.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -54,5 +56,36 @@ public class CategoryController {
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/search")
+    @Operation(
+            summary = "Advanced search with dynamic criteria",
+            description = """
+                    Generic search endpoint supporting any field, any operation (EQUALS, LIKE, etc.), \
+                    pagination, and sorting. All criteria are combined with AND logic.
+                    
+                    Supported operations:
+                    - EQUALS, NOT_EQUALS
+                    - LIKE (contains), STARTS_WITH, ENDS_WITH
+                    - IS_NULL, IS_NOT_NULL
+                    
+                    Example request:
+                    ```json
+                    {
+                      "criteria": [
+                        { "field": "name", "operation": "LIKE", "value": "food" },
+                        { "field": "description", "operation": "LIKE", "value": "daily" }
+                      ],
+                      "page": 0,
+                      "size": 20,
+                      "sortBy": "name",
+                      "sortOrder": "ASC"
+                    }
+                    ```"""
+    )
+    public ResponseEntity<PagedResponse<CategoryResponse>> searchCategories(
+            @Valid @RequestBody FilterRequest filterRequest) {
+        return ResponseEntity.ok(categoryService.searchCategories(filterRequest));
     }
 }

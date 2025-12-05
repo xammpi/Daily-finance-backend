@@ -1,5 +1,6 @@
 package com.expensetracker.controller;
 
+import com.expensetracker.dto.common.FilterRequest;
 import com.expensetracker.dto.common.PagedResponse;
 import com.expensetracker.dto.expense.*;
 import com.expensetracker.service.ExpenseService;
@@ -73,44 +74,40 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.getCategoryStatistics(startDate, endDate));
     }
 
-    @GetMapping("/filter")
+    @PostMapping("/search")
     @Operation(
-            summary = "Filter and paginate expenses",
-            description = "Filter expenses by category, date range, amount range with pagination support. " +
-                    "Results are sorted by date (newest first)."
+            summary = "Advanced search with dynamic criteria",
+            description = """
+                    Generic search endpoint supporting any field, any operation (EQUALS, LIKE, GREATER_THAN, etc.), \
+                    pagination, and sorting. Supports nested fields (e.g., 'category.name'). \
+                    All criteria are combined with AND logic.
+                    
+                    Supported operations:
+                    - EQUALS, NOT_EQUALS
+                    - GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL
+                    - LIKE (contains), STARTS_WITH, ENDS_WITH
+                    - IN, NOT_IN (comma-separated values)
+                    - IS_NULL, IS_NOT_NULL
+                    - BETWEEN (requires both value and valueTo)
+                    
+                    Example request:
+                    ```json
+                    {
+                      "criteria": [
+                        { "field": "amount", "operation": "GREATER_THAN", "value": "100" },
+                        { "field": "date", "operation": "BETWEEN", "value": "2024-01-01", "valueTo": "2024-12-31" },
+                        { "field": "description", "operation": "LIKE", "value": "grocery" },
+                        { "field": "category.name", "operation": "EQUALS", "value": "Food" }
+                      ],
+                      "page": 0,
+                      "size": 20,
+                      "sortBy": "date",
+                      "sortOrder": "DESC"
+                    }
+                    ```"""
     )
-    public ResponseEntity<PagedResponse<ExpenseResponse>> filterExpenses(
-            @Parameter(description = "Filter by category ID")
-            @RequestParam(required = false) Long categoryId,
-
-            @Parameter(description = "Start date (inclusive) in YYYY-MM-DD format")
-            @RequestParam(required = false) LocalDate startDate,
-
-            @Parameter(description = "End date (inclusive) in YYYY-MM-DD format")
-            @RequestParam(required = false) LocalDate endDate,
-
-            @Parameter(description = "Minimum amount (inclusive)")
-            @RequestParam(required = false) BigDecimal minAmount,
-
-            @Parameter(description = "Maximum amount (inclusive)")
-            @RequestParam(required = false) BigDecimal maxAmount,
-
-            @Parameter(description = "Page number (0-indexed, default: 0)")
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-
-            @Parameter(description = "Page size (default: 10)")
-            @RequestParam(required = false, defaultValue = "10") Integer size
-    ) {
-        ExpenseFilterRequest filter = new ExpenseFilterRequest(
-                categoryId,
-                startDate,
-                endDate,
-                minAmount,
-                maxAmount,
-                page,
-                size
-        );
-
-        return ResponseEntity.ok(expenseService.filterExpenses(filter));
+    public ResponseEntity<PagedResponse<ExpenseResponse>> searchExpenses(
+            @Valid @RequestBody FilterRequest filterRequest) {
+        return ResponseEntity.ok(expenseService.searchExpenses(filterRequest));
     }
 }

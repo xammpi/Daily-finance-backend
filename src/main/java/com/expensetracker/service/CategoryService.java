@@ -2,6 +2,8 @@ package com.expensetracker.service;
 
 import com.expensetracker.dto.category.CategoryRequest;
 import com.expensetracker.dto.category.CategoryResponse;
+import com.expensetracker.dto.common.FilterRequest;
+import com.expensetracker.dto.common.PagedResponse;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.User;
 import com.expensetracker.exception.BadRequestException;
@@ -10,7 +12,13 @@ import com.expensetracker.mapper.CategoryMapper;
 import com.expensetracker.repository.CategoryRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.security.UserPrincipal;
+import com.expensetracker.specification.SpecificationBuilder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,5 +101,65 @@ public class CategoryService {
         }
 
         categoryRepository.delete(category);
+    }
+
+    /**
+     * Generic search method using dynamic specifications
+     * Can filter by any field using any operation
+     *
+     * Example FilterRequest:
+     * {
+     *   "criteria": [
+     *     { "field": "name", "operation": "LIKE", "value": "food" },
+     *     { "field": "description", "operation": "LIKE", "value": "daily" }
+     *   ],
+     *   "page": 0,
+     *   "size": 20,
+     *   "sortBy": "name",
+     *   "sortOrder": "ASC"
+     * }
+     */
+    @Transactional(readOnly = true)
+    public PagedResponse<CategoryResponse> searchCategories(FilterRequest filterRequest) {
+        Long userId = getCurrentUserId();
+
+        // Build dynamic specification from criteria
+        Specification<Category> spec = SpecificationBuilder.build(filterRequest);
+
+        // Always add user filter
+        Specification<Category> userSpec = (root, query, cb) ->
+                cb.equal(root.get("user").get("id"), userId);
+
+        // Combine specifications
+        spec = spec == null ? userSpec : spec.and(userSpec);
+
+        // Create pageable
+        Pageable pageable = filterRequest.toPageRequest().toSpringPageRequest();
+
+        // If no sort specified, default to name ascending
+        if (filterRequest.getSortBy() == null || filterRequest.getSortBy().isBlank()) {
+            pageable = PageRequest.of(
+                    filterRequest.getPage(),
+                    filterRequest.getSize(),
+                    Sort.by(Sort.Direction.ASC, "name")
+            );
+        }
+
+        // Execute query
+        Page<Category> categoryPage = categoryRepository.findAll(spec, pageable);
+
+        // Map to DTOs
+        List<CategoryResponse> categoryResponses = categoryPage.getContent()
+                .stream()
+                .map(categoryMapper::toResponse)
+                .collect(Collectors.toList());
+
+        // Return paged response
+        return PagedResponse.of(
+                categoryResponses,
+                categoryPage.getNumber(),
+                categoryPage.getSize(),
+                categoryPage.getTotalElements()
+        );
     }
 }

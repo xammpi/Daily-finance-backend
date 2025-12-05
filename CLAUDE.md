@@ -126,6 +126,7 @@ src/
 │   │   ├── dto/              # Data Transfer Objects
 │   │   │   ├── auth/         # LoginRequest, RegisterRequest, AuthResponse
 │   │   │   ├── category/     # CategoryRequest, CategoryResponse
+│   │   │   ├── common/       # Generic pagination & search DTOs (FilterRequest, PagedResponse, etc.)
 │   │   │   ├── expense/      # ExpenseRequest, ExpenseResponse
 │   │   │   └── user/         # DepositRequest, UserProfileResponse, BalanceSummaryResponse
 │   │   ├── entity/           # JPA entities (3 total + 1 enum)
@@ -150,11 +151,14 @@ src/
 │   │   │   ├── JwtAuthenticationFilter.java
 │   │   │   ├── JwtTokenProvider.java
 │   │   │   └── UserPrincipal.java
-│   │   └── service/          # Business logic services (4 implemented)
-│   │       ├── AuthService.java
-│   │       ├── CategoryService.java
-│   │       ├── ExpenseService.java
-│   │       └── UserService.java
+│   │   ├── service/          # Business logic services (4 implemented)
+│   │   │   ├── AuthService.java
+│   │   │   ├── CategoryService.java
+│   │   │   ├── ExpenseService.java
+│   │   │   └── UserService.java
+│   │   └── specification/    # Generic search specification builders
+│   │       ├── GenericSpecification.java
+│   │       └── SpecificationBuilder.java
 │   └── resources/
 │       ├── application.yml                  # Main configuration
 │       ├── application-local.yml.template   # Local profile template
@@ -231,6 +235,8 @@ Expenses (Authenticated):
 - DELETE /api/v1/expenses/{id}                 # Delete expense (adds back to balance)
 - GET    /api/v1/expenses/statistics           # Get comprehensive expense statistics
 - GET    /api/v1/expenses/statistics/by-category  # Get category-wise statistics (date range)
+- GET    /api/v1/expenses/filter               # Filter expenses (legacy, specific fields)
+- POST   /api/v1/expenses/search               # Advanced search with dynamic criteria (NEW)
 
 Categories (Authenticated):
 - GET    /api/v1/categories        # List all user categories
@@ -238,6 +244,7 @@ Categories (Authenticated):
 - GET    /api/v1/categories/{id}   # Get category by ID
 - PUT    /api/v1/categories/{id}   # Update category
 - DELETE /api/v1/categories/{id}   # Delete category
+- POST   /api/v1/categories/search # Advanced search with dynamic criteria (NEW)
 
 ### Key Patterns & Implementation Details
 
@@ -320,6 +327,28 @@ Controller → Service → Repository → Database
   - Last transaction date
   - Low balance warning (triggers when balance < 100)
 
+**8. Generic Search & Filter Framework**
+- **Universal approach** that works with ANY entity (not just Expense/Category)
+- **Architecture:**
+  - `GenericSpecification<T>` - Converts SearchCriteria to JPA Specification
+  - `SpecificationBuilder` - Combines multiple specifications with AND/OR logic
+  - `FilterRequest` - Generic DTO containing criteria, pagination, sorting
+  - `SearchOperation` enum - 14 operations (EQUALS, LIKE, BETWEEN, etc.)
+- **Features:**
+  - Dynamic query building using JPA Criteria API (no SQL injection risk)
+  - Nested field support (e.g., search by "category.name" in Expense)
+  - Automatic type conversion (String → Long, LocalDate, BigDecimal, etc.)
+  - Pagination with configurable size (max 100)
+  - Flexible sorting (any field, ASC/DESC)
+  - Multi-tenant security (automatic user filtering)
+- **Usage in services:**
+  - Build Specification from FilterRequest criteria
+  - Add user filter for security
+  - Execute with repository.findAll(spec, pageable)
+  - Map results to DTOs
+- **Extensibility:** Adding search to new entities requires only 3 steps (see GENERIC_SEARCH_GUIDE.md)
+- **Frontend integration:** See FRONTEND_API_GUIDE.md for complete examples
+
 ## Important Notes
 
 ### Configuration
@@ -370,6 +399,14 @@ Controller → Service → Repository → Database
   - Expense statistics (totals, averages, comparisons)
   - Category-wise breakdown with percentages
   - Date range filtering for statistics
+- **Generic Search & Filter Framework** (NEW):
+  - Works with ANY entity (Expense, Category, future entities)
+  - 14 search operations (EQUALS, LIKE, GREATER_THAN, BETWEEN, etc.)
+  - Dynamic criteria building with JPA Specifications
+  - Nested field support (e.g., category.name)
+  - Pagination and sorting
+  - Type-safe with automatic conversion
+  - See: `GENERIC_SEARCH_GUIDE.md` and `FRONTEND_API_GUIDE.md`
 - Category CRUD (simplified flat structure)
 - Database schema with 12 migrations (V1-V12)
 - Security configuration with JWT bearer token authentication

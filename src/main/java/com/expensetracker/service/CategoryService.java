@@ -46,19 +46,11 @@ public class CategoryService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Category category = categoryMapper.toEntity(request);
-        category.setUser(user);
+        // Use constructor - entity manages its own state
+        Category category = new Category(request.getName(), request.getDescription(), user);
 
         category = categoryRepository.save(category);
         return categoryMapper.toResponse(category);
-    }
-
-    @Transactional(readOnly = true)
-    public List<CategoryResponse> getUserCategories() {
-        Long userId = getCurrentUserId();
-        return categoryRepository.findByUserId(userId).stream()
-                .map(categoryMapper::toResponse)
-                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +59,8 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        if (!category.getUser().getId().equals(userId)) {
+        // Use rich domain model for ownership check
+        if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
@@ -80,11 +73,13 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        if (!category.getUser().getId().equals(userId)) {
+        // Use rich domain model for ownership check
+        if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        categoryMapper.updateEntityFromRequest(request, category);
+        // Use behavior method - entity manages its own state
+        category.updateDetails(request.getName(), request.getDescription());
         category = categoryRepository.save(category);
 
         return categoryMapper.toResponse(category);
@@ -96,7 +91,8 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        if (!category.getUser().getId().equals(userId)) {
+        // Use rich domain model for ownership check
+        if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
@@ -106,7 +102,7 @@ public class CategoryService {
     /**
      * Generic search method using dynamic specifications
      * Can filter by any field using any operation
-     *
+     * <p>
      * Example FilterRequest:
      * {
      *   "criteria": [
@@ -133,17 +129,18 @@ public class CategoryService {
         // Combine specifications
         spec = spec == null ? userSpec : spec.and(userSpec);
 
-        // Create pageable
-        Pageable pageable = filterRequest.toPageRequest().toSpringPageRequest();
+        // Handle pagination and sorting with defaults
+        int page = filterRequest.getPage() != null ? filterRequest.getPage() : 0;
+        int size = filterRequest.getSize() != null ? filterRequest.getSize() : 20;
+        String sortBy = filterRequest.getSortBy() != null && !filterRequest.getSortBy().isBlank()
+                ? filterRequest.getSortBy()
+                : "name";
+        Sort.Direction direction = filterRequest.getSortOrder() != null && filterRequest.getSortOrder() == com.expensetracker.dto.common.SortOrder.DESC
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
 
-        // If no sort specified, default to name ascending
-        if (filterRequest.getSortBy() == null || filterRequest.getSortBy().isBlank()) {
-            pageable = PageRequest.of(
-                    filterRequest.getPage(),
-                    filterRequest.getSize(),
-                    Sort.by(Sort.Direction.ASC, "name")
-            );
-        }
+        // Create pageable with defaults
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
         // Execute query
         Page<Category> categoryPage = categoryRepository.findAll(spec, pageable);

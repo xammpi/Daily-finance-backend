@@ -67,22 +67,18 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
-
-        // Create deposit record
-        Deposit deposit = new Deposit();
-        deposit.setAmount(request.amount());
-        deposit.setDate(LocalDate.now());
-        deposit.setDescription("Deposit to wallet");
-        deposit.setUser(user);
+        // Use constructor - entity manages its own state
+        Deposit deposit = new Deposit(
+                request.amount(),
+                LocalDate.now(),
+                "Deposit to wallet",
+                user
+        );
         depositRepository.save(deposit);
 
-        // Update wallet balance
-        wallet.addAmount(request.amount());
-        walletRepository.save(wallet);
+        // Credit deposit to wallet using rich domain model
+        deposit.creditToWallet(user.getWallet());
+        walletRepository.save(user.getWallet());
 
         return new UserProfileResponse(
                 user.getId(),
@@ -90,7 +86,7 @@ public class UserService {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                wallet.getCurrency().getId()
+                user.getWallet().getCurrency().getId()
         );
     }
 
@@ -108,7 +104,8 @@ public class UserService {
         Currency currency = currencyRepository.findById(currencyId)
                 .orElseThrow(() -> new BadRequestException("Currency not found"));
 
-        wallet.setCurrency(currency);
+        // Use rich domain model - wallet handles currency change
+        wallet.changeCurrency(currency);
         walletRepository.save(wallet);
 
         return new UserProfileResponse(
@@ -127,14 +124,9 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
-
-        // Directly set the new balance amount
-        wallet.setAmount(request.amount());
-        walletRepository.save(wallet);
+        // Use rich domain model - user handles wallet validation and update
+        user.updateWalletBalance(request.amount());
+        walletRepository.save(user.getWallet());
 
         return new UserProfileResponse(
                 user.getId(),
@@ -142,7 +134,7 @@ public class UserService {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                wallet.getCurrency().getId()
+                user.getWallet().getCurrency().getId()
         );
     }
 
@@ -152,19 +144,9 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
-
-        // Check if balance is sufficient
-        if (wallet.getAmount().compareTo(request.amount()) < 0) {
-            throw new BadRequestException("Insufficient balance. Current balance: " + wallet.getAmount());
-        }
-
-        // Subtract withdraw amount from wallet
-        wallet.subtractAmount(request.amount());
-        walletRepository.save(wallet);
+        // Use rich domain model - user handles wallet validation and withdrawal
+        user.withdrawFromWallet(request.amount());
+        walletRepository.save(user.getWallet());
 
         return new UserProfileResponse(
                 user.getId(),
@@ -172,7 +154,7 @@ public class UserService {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                wallet.getCurrency().getId()
+                user.getWallet().getCurrency().getId()
         );
     }
 
@@ -265,9 +247,8 @@ public class UserService {
             lastTransactionDate = lastExpenseDate;
         }
 
-        // Check for low balance warning (balance < 100 in any currency as default threshold)
-        boolean lowBalanceWarning = wallet.getAmount().compareTo(BigDecimal.valueOf(100)) < 0
-                && wallet.getAmount().compareTo(BigDecimal.ZERO) > 0;
+        // Use rich domain model for low balance check
+        boolean lowBalanceWarning = user.hasLowBalance() && wallet.getAmount().compareTo(BigDecimal.ZERO) > 0;
 
         return new WalletResponse(
                 wallet.getId(),

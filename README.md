@@ -1,58 +1,98 @@
 # Daily Finance Backend
 
-Production-ready REST API for tracking daily expenses and income.
-
-## Features
-
-- User authentication (JWT-based)
-- Transaction management (expenses/income)
-- Categories with hierarchy support
-- Multiple accounts (cards, cash, etc.)
-- Budgets and recurring transactions
-- RESTful API with OpenAPI documentation
-
-## Tech Stack
-
-- Java 21
-- Spring Boot 3.2.x
-- PostgreSQL 16
-- Spring Security + JWT
-- MapStruct
-- Flyway
-- OpenAPI 3.0
+Production-ready REST API for tracking daily expenses with JWT authentication, multi-currency support, and advanced search capabilities.
 
 ## Quick Start
 
-### Prerequisites
+```bash
+# Setup
+./mvnw clean install
 
-- Java 21
-- Maven 3.8+
-- PostgreSQL 16
+# Run
+./mvnw spring-boot:run
 
-### Setup
+# Access
+http://localhost:8080
+http://localhost:8080/swagger-ui.html
+```
 
-1. Clone the repository
-2. Copy the local configuration template:
-   ```bash
-   cp src/main/resources/application-local.yml.template src/main/resources/application-local.yml
-   ```
-3. Update `application-local.yml` with your PostgreSQL credentials
-4. Build and run:
-   ```bash
-   ./mvnw clean install
-   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-   ```
+## Features
 
-### API Documentation
+- 🔐 JWT Authentication
+- 💰 Multi-currency wallet management (20 currencies)
+- 📊 Expense tracking with categories
+- 🔍 Advanced search & filter system
+- 📈 Comprehensive statistics (daily, weekly, monthly)
+- ⚡ Generic pagination & sorting
+- 🏗️ Rich domain model architecture
+- 📝 Complete field validation
 
-Once running, visit:
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- API Docs: http://localhost:8080/v3/api-docs
+## Tech Stack
 
-## Development
+- **Framework:** Spring Boot 3.2.x
+- **Language:** Java 21
+- **Database:** PostgreSQL 16
+- **Security:** Spring Security + JWT
+- **ORM:** Spring Data JPA
+- **Migrations:** Flyway
+- **Mapping:** MapStruct
+- **Docs:** OpenAPI/Swagger
 
-See [CLAUDE.md](CLAUDE.md) for comprehensive development guidelines.
+## Documentation
+
+- **[API Guide](API_GUIDE.md)** - Complete API reference with examples
+- **[CLAUDE.md](CLAUDE.md)** - Development guide for Claude Code
+- **Swagger UI** - Interactive API docs at `/swagger-ui.html`
+
+## Quick Commands
+
+```bash
+# Development
+./mvnw spring-boot:run              # Run application
+./mvnw test                         # Run tests
+./mvnw clean compile                # Compile
+
+# Database
+./mvnw flyway:info                  # Migration status
+./mvnw flyway:validate              # Validate migrations
+
+# Build
+./mvnw clean package -DskipTests    # Build JAR
+docker-compose up -d                # Run with Docker
+```
+
+## API Endpoints
+
+### Authentication (Public)
+- `POST /api/v1/auth/register` - Register user
+- `POST /api/v1/auth/login` - Login
+
+### Currencies (Public)
+- `GET /api/v1/currencies` - Get all currencies
+
+### User & Wallet
+- `GET /api/v1/user/profile` - Get profile
+- `GET /api/v1/user/wallet` - Get wallet details
+- `POST /api/v1/user/deposit` - Deposit money
+- `POST /api/v1/user/withdraw` - Withdraw money
+
+### Categories
+- `POST /api/v1/categories` - Create category
+- `POST /api/v1/categories/search` - Advanced search
+
+### Expenses
+- `POST /api/v1/expenses` - Create expense
+- `POST /api/v1/expenses/search` - Advanced search
+- `GET /api/v1/expenses/statistics` - Get statistics
+
+See **[API_GUIDE.md](API_GUIDE.md)** for complete endpoint reference.
+
+## Configuration
+
+1. Copy template: `cp src/main/resources/application-local.yml.template src/main/resources/application-local.yml`
+2. Configure database and JWT secret
+3. Run: `./mvnw spring-boot:run`
 
 ## License
 
-MIT
+Proprietary

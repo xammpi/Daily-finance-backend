@@ -11,13 +11,5 @@ import org.mapstruct.MappingTarget;
 @Mapper(config = CentralMappingConfig.class)
 public interface CategoryMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    Category toEntity(CategoryRequest request);
-
     CategoryResponse toResponse(Category category);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    void updateEntityFromRequest(CategoryRequest request, @MappingTarget Category category);
 }

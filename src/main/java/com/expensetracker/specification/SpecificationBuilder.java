@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * Builder for combining multiple Specifications with AND logic
- *
+ * <p>
  * Usage:
  * <pre>
  * FilterRequest filterRequest = // ... from request
@@ -26,7 +26,7 @@ public class SpecificationBuilder {
             return null;
         }
 
-        Specification<T> specification = new GenericSpecification<>(criteriaList.get(0));
+        Specification<T> specification = new GenericSpecification<>(criteriaList.getFirst());
 
         for (int i = 1; i < criteriaList.size(); i++) {
             specification = Specification.where(specification)

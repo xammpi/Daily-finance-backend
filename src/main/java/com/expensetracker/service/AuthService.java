@@ -45,18 +45,18 @@ public class AuthService {
         Currency currency = currencyRepository.findById(request.currencyId().longValue())
                 .orElseThrow(() -> new BadRequestException("Currency id not found"));
 
-        User user = new User();
-        user.setEmail(request.email());
-        user.setUsername(request.username());
-        user.setPassword(passwordEncoder.encode(request.password()));
-        user.setFirstName(request.firstName());
-        user.setLastName(request.lastName());
-        user.setEnabled(true);
+        // Use constructor - entity manages its own state
+        User user = new User(
+                request.email(),
+                request.username(),
+                passwordEncoder.encode(request.password()),
+                request.firstName(),
+                request.lastName()
+        );
 
-        Wallet wallet = new Wallet();
-        wallet.setCurrency(currency);
-        wallet.setUser(user);
-        user.setWallet(wallet);
+        // Use constructor - entity manages its own state
+        Wallet wallet = new Wallet(user, currency);
+        user.addWallet(wallet);
 
         // Save user with cascade to automatically save wallet
         user = userRepository.save(user);

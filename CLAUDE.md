@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Daily Finance Backend — production-ready REST API для отслеживания ежедневных расходов. Приложение предоставляет функционал управления расходами, категориями и балансом пользователя с JWT-аутентификацией.
 
-**For Frontend Developers:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for comprehensive API reference with examples.
+**For Frontend Developers:** See [API_GUIDE.md](API_GUIDE.md) for comprehensive API reference with examples.
 
 ### Key Features
 - User authentication (JWT-based)
@@ -218,6 +218,9 @@ Authentication (Public):
 - POST   /api/v1/auth/register     # User registration
 - POST   /api/v1/auth/login        # Login, returns JWT
 
+Currencies (Public):
+- GET    /api/v1/currencies             # Get all available currencies
+
 User Profile & Wallet (Authenticated):
 - GET    /api/v1/user/profile           # Get current user profile
 - GET    /api/v1/user/wallet            # Get detailed wallet info (balance, totals, warnings)
@@ -389,7 +392,7 @@ Controller → Service → Repository → Database
   - Direct wallet balance editing
   - Detailed wallet information endpoint
   - Low balance warnings
-- Multi-currency support (20 currencies, user-selectable)
+- Multi-currency support (20 currencies, user-selectable, public endpoint to get all currencies)
 - Expense tracking:
   - Create, read, update, delete expenses
   - Automatic balance deduction with validation
@@ -406,7 +409,7 @@ Controller → Service → Repository → Database
   - Nested field support (e.g., category.name)
   - Pagination and sorting
   - Type-safe with automatic conversion
-  - See: `GENERIC_SEARCH_GUIDE.md` and `FRONTEND_API_GUIDE.md`
+  - See: `API_GUIDE.md` for complete search documentation
 - Category CRUD (simplified flat structure)
 - Database schema with 12 migrations (V1-V12)
 - Security configuration with JWT bearer token authentication

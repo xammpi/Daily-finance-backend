@@ -11,17 +11,10 @@ import org.mapstruct.MappingTarget;
 @Mapper(config = CentralMappingConfig.class)
 public interface ExpenseMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    @Mapping(target = "category", ignore = true)
-    Expense toEntity(ExpenseRequest request);
+    // No toEntity - use constructor: new Expense(amount, date, description, user, category)
+    // No updateEntityFromRequest - use behavior method: expense.updateDetails(date, description, category)
 
     @Mapping(source = "category.id", target = "categoryId")
     ExpenseResponse toResponse(Expense expense);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    @Mapping(target = "category", ignore = true)
-    void updateEntityFromRequest(ExpenseRequest request, @MappingTarget Expense expense);
 
 }

@@ -57,33 +57,29 @@ public class ExpenseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
-
         Category category = categoryRepository.findById((request.categoryId().longValue()))
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        if (!category.getUser().getId().equals(userId)) {
+        // Use rich domain model for ownership check
+        if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        // Check if balance is sufficient
-        if (wallet.getAmount().compareTo(request.amount()) < 0) {
-            throw new BadRequestException("Insufficient balance. Current balance: " + wallet.getAmount()
-                    + ", Required: " + request.amount());
-        }
+        // Use constructor - entity manages its own state
+        Expense expense = new Expense(
+                request.amount(),
+                request.date(),
+                request.description(),
+                user,
+                category
+        );
 
-        // Deduct expense amount from wallet balance
-        wallet.subtractAmount(request.amount());
+        // Use rich domain model - user handles wallet validation and charging
+        user.createExpense(expense);
 
-        Expense expense = expenseMapper.toEntity(request);
-        expense.setUser(user);
-        expense.setCategory(category);
-
+        // Save entities
         expense = expenseRepository.save(expense);
-        walletRepository.save(wallet);
+        walletRepository.save(user.getWallet());
 
         return expenseMapper.toResponse(expense);
     }
@@ -94,46 +90,27 @@ public class ExpenseService {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
 
-        if (!expense.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Expense does not belong to current user");
-        }
-
         User user = expense.getUser();
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
-
-        // Reverse the old expense amount (add it back)
-        wallet.addAmount(expense.getAmount());
-
-        // Update expense fields
-        expenseMapper.updateEntityFromRequest(request, expense);
 
         Category category = categoryRepository.findById((request.categoryId().longValue()))
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        if (!category.getUser().getId().equals(userId)) {
+        // Use rich domain model for ownership check
+        if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        expense.setCategory(category);
+        // Use rich domain model - user handles wallet refund and recharge
+        user.updateExpense(expense, request.amount());
 
-        // Deduct the new expense amount
-        wallet.subtractAmount(expense.getAmount());
+        // Use behavior method - entity manages its own state
+        expense.updateDetails(request.date(), request.description(), category);
 
+        // Save entities
         expense = expenseRepository.save(expense);
-        walletRepository.save(wallet);
+        walletRepository.save(user.getWallet());
 
         return expenseMapper.toResponse(expense);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ExpenseResponse> getUserExpenses() {
-        Long userId = getCurrentUserId();
-        return expenseRepository.findByUserId(userId).stream()
-                .map(expenseMapper::toResponse)
-                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -155,20 +132,13 @@ public class ExpenseService {
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
 
-        if (!expense.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Expense does not belong to current user");
-        }
-
         User user = expense.getUser();
-        Wallet wallet = user.getWallet();
-        if (wallet == null) {
-            throw new ResourceNotFoundException("Wallet not found for user");
-        }
 
-        // Add the expense amount back to wallet balance when deleting
-        wallet.addAmount(expense.getAmount());
+        // Use rich domain model - user handles wallet refund
+        user.deleteExpense(expense);
 
-        walletRepository.save(wallet);
+        // Save and delete
+        walletRepository.save(user.getWallet());
         expenseRepository.delete(expense);
     }
 
@@ -375,17 +345,18 @@ public class ExpenseService {
         // Combine specifications
         spec = spec == null ? userSpec : spec.and(userSpec);
 
-        // Create pageable
-        Pageable pageable = filterRequest.toPageRequest().toSpringPageRequest();
+        // Handle pagination and sorting with defaults
+        int page = filterRequest.getPage() != null ? filterRequest.getPage() : 0;
+        int size = filterRequest.getSize() != null ? filterRequest.getSize() : 20;
+        String sortBy = filterRequest.getSortBy() != null && !filterRequest.getSortBy().isBlank()
+                ? filterRequest.getSortBy()
+                : "date";
+        Sort.Direction direction = filterRequest.getSortOrder() != null && filterRequest.getSortOrder() == com.expensetracker.dto.common.SortOrder.ASC
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
 
-        // If no sort specified, default to date descending
-        if (filterRequest.getSortBy() == null || filterRequest.getSortBy().isBlank()) {
-            pageable = PageRequest.of(
-                    filterRequest.getPage(),
-                    filterRequest.getSize(),
-                    Sort.by(Sort.Direction.DESC, "date")
-            );
-        }
+        // Create pageable with defaults
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
         // Execute query
         Page<Expense> expensePage = expenseRepository.findAll(spec, pageable);

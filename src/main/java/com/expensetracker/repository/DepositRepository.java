@@ -13,8 +13,6 @@ import java.util.List;
 @Repository
 public interface DepositRepository extends JpaRepository<Deposit, Long> {
 
-    List<Deposit> findByUserId(Long userId);
-
     List<Deposit> findByUserIdAndDateBetween(Long userId, LocalDate startDate, LocalDate endDate);
 
     @Query("SELECT COALESCE(SUM(d.amount), 0) FROM Deposit d WHERE d.user.id = :userId")

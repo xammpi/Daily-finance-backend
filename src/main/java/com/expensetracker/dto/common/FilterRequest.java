@@ -36,33 +36,17 @@ public class FilterRequest {
 
     @Schema(description = "List of search criteria (combined with AND)")
     @Valid
-    @Builder.Default
-    private List<SearchCriteria> criteria = new ArrayList<>();
+    private List<SearchCriteria> criteria;
 
-    @Schema(description = "Page number (0-indexed)", example = "0", defaultValue = "0")
-    @Builder.Default
-    private Integer page = 0;
+    @Schema(description = "Page number (0-indexed)", example = "0")
+    private Integer page;
 
-    @Schema(description = "Page size", example = "20", defaultValue = "20")
-    @Builder.Default
-    private Integer size = 20;
+    @Schema(description = "Page size", example = "20")
+    private Integer size;
 
     @Schema(description = "Sort field name", example = "createdAt")
     private String sortBy;
 
-    @Schema(description = "Sort direction", example = "DESC", defaultValue = "DESC")
-    @Builder.Default
-    private SortOrder sortOrder = SortOrder.DESC;
-
-    /**
-     * Convert to PageRequest
-     */
-    public PageRequest toPageRequest() {
-        return PageRequest.builder()
-            .page(page)
-            .size(size)
-            .sortBy(sortBy)
-            .sortOrder(sortOrder)
-            .build();
-    }
+    @Schema(description = "Sort direction", example = "DESC")
+    private SortOrder sortOrder;
 }

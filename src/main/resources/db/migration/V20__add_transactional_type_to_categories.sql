@@ -1,0 +1,9 @@
+BEGIN;
+
+ALTER TABLE categories ADD COLUMN type VARCHAR(20);
+
+UPDATE categories SET type = 'EXPENSE' WHERE type IS NULL;
+
+ALTER TABLE categories ALTER COLUMN type SET NOT NULL;
+
+COMMIT;

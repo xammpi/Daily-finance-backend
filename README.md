@@ -81,7 +81,7 @@ docker-compose up -d                # Run with Docker
 - `POST /api/v1/categories/search` - Advanced search
 
 ### Expenses
-- `POST /api/v1/expenses` - Create expense
+- `POST /api/v1/expenses` - Create transaction
 - `POST /api/v1/expenses/search` - Advanced search
 - `GET /api/v1/expenses/statistics` - Get statistics
 

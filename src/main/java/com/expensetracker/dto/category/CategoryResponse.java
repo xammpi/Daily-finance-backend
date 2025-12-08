@@ -1,5 +1,7 @@
 package com.expensetracker.dto.category;
 
+import com.expensetracker.entity.CategoryType;
+
 import java.time.LocalDateTime;
 
 public record CategoryResponse(
@@ -7,7 +9,8 @@ public record CategoryResponse(
         String name,
         String description,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        CategoryType type
 ) {
 
 }

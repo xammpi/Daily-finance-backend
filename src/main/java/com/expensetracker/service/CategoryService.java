@@ -4,6 +4,7 @@ import com.expensetracker.dto.category.CategoryRequest;
 import com.expensetracker.dto.category.CategoryResponse;
 import com.expensetracker.dto.common.FilterRequest;
 import com.expensetracker.dto.common.PagedResponse;
+import com.expensetracker.dto.common.SortOrder;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.User;
 import com.expensetracker.exception.BadRequestException;
@@ -46,8 +47,11 @@ public class CategoryService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Use constructor - entity manages its own state
-        Category category = new Category(request.getName(), request.getDescription(), user);
+        if (categoryRepository.existsByUserIdAndNameIgnoreCase(userId, request.getName())) {
+            throw new BadRequestException("Category already exists");
+        }
+
+        Category category = new Category(request.getName(), request.getDescription(), request.getType(), user);
 
         category = categoryRepository.save(category);
         return categoryMapper.toResponse(category);
@@ -73,13 +77,15 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        // Use rich domain model for ownership check
+        if (categoryRepository.existsByUserIdAndNameIgnoreCase(userId, request.getName())) {
+            throw new BadRequestException("Category already exists");
+        }
+
         if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        // Use behavior method - entity manages its own state
-        category.updateDetails(request.getName(), request.getDescription());
+        category.updateDetails(request.getName(), request.getDescription(), request.getType());
         category = categoryRepository.save(category);
 
         return categoryMapper.toResponse(category);
@@ -105,14 +111,14 @@ public class CategoryService {
      * <p>
      * Example FilterRequest:
      * {
-     *   "criteria": [
-     *     { "field": "name", "operation": "LIKE", "value": "food" },
-     *     { "field": "description", "operation": "LIKE", "value": "daily" }
-     *   ],
-     *   "page": 0,
-     *   "size": 20,
-     *   "sortBy": "name",
-     *   "sortOrder": "ASC"
+     * "criteria": [
+     * { "field": "name", "operation": "LIKE", "value": "food" },
+     * { "field": "description", "operation": "LIKE", "value": "daily" }
+     * ],
+     * "page": 0,
+     * "size": 20,
+     * "sortBy": "name",
+     * "sortOrder": "ASC"
      * }
      */
     @Transactional(readOnly = true)
@@ -135,7 +141,7 @@ public class CategoryService {
         String sortBy = filterRequest.getSortBy() != null && !filterRequest.getSortBy().isBlank()
                 ? filterRequest.getSortBy()
                 : "name";
-        Sort.Direction direction = filterRequest.getSortOrder() != null && filterRequest.getSortOrder() == com.expensetracker.dto.common.SortOrder.DESC
+        Sort.Direction direction = filterRequest.getSortOrder() != null && filterRequest.getSortOrder() == SortOrder.DESC
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 

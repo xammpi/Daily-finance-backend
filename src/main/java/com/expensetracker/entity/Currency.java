@@ -6,8 +6,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 
 @Entity
-@Table(name = "currencies")
 @Getter
+@Table(name = "currencies")
 public class Currency extends BaseEntity{
 
     @Column(nullable = false, unique = true, length = 3)

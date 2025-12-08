@@ -1,0 +1,5 @@
+BEGIN ;
+
+ALTER TABLE transactions DROP COLUMN type;
+
+COMMIT ;

@@ -1,10 +1,10 @@
-package com.expensetracker.dto.expense;
+package com.expensetracker.dto.transaction;
 
 import com.expensetracker.entity.Currency;
 
 import java.math.BigDecimal;
 
-public record ExpenseStatisticsResponse(
+public record TransactionStatisticsResponse(
         BigDecimal todayExpenses,
         BigDecimal weekExpenses,
         BigDecimal monthExpenses,

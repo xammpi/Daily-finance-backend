@@ -25,27 +25,25 @@ public class CategoryController {
 
     @PostMapping
     @Operation(summary = "Create a new category")
-    public ResponseEntity<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
+    public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(request));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get category by ID")
-    public ResponseEntity<CategoryResponse> getCategoryById(@PathVariable Long id) {
+    @Operation(summary = "Get category by id")
+    public ResponseEntity<CategoryResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a category")
-    public ResponseEntity<CategoryResponse> updateCategory(
-            @PathVariable Long id,
-            @Valid @RequestBody CategoryRequest request) {
+    public ResponseEntity<CategoryResponse> update(@PathVariable Long id, @Valid @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(categoryService.updateCategory(id, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a category")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.noContent().build();
     }
@@ -76,8 +74,7 @@ public class CategoryController {
                     }
                     ```"""
     )
-    public ResponseEntity<PagedResponse<CategoryResponse>> searchCategories(
-            @Valid @RequestBody FilterRequest filterRequest) {
+    public ResponseEntity<PagedResponse<CategoryResponse>> search(@Valid @RequestBody FilterRequest filterRequest) {
         return ResponseEntity.ok(categoryService.searchCategories(filterRequest));
     }
 }

@@ -7,8 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-@MappedSuperclass
 @Getter
+@MappedSuperclass
 public abstract class BaseEntity {
 
     @Id

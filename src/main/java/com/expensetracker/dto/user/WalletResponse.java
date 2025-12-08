@@ -8,12 +8,6 @@ import java.time.LocalDateTime;
 public record WalletResponse(
         Long walletId,
         BigDecimal currentBalance,
-        Currency currency,
-        Long totalDeposits,
-        BigDecimal totalDepositAmount,
-        Long totalExpenses,
-        BigDecimal totalExpenseAmount,
-        LocalDateTime lastTransactionDate,
-        boolean lowBalanceWarning
+        Currency currency
 ) {
 }

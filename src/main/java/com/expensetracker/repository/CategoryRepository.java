@@ -11,5 +11,5 @@ import java.util.List;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long>, JpaSpecificationExecutor<Category> {
 
-    List<Category> findByUserId(Long userId);
+    boolean existsByUserIdAndNameIgnoreCase(Long userid, String name);
 }

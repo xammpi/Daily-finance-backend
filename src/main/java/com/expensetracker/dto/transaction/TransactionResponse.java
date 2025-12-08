@@ -1,13 +1,14 @@
-package com.expensetracker.dto.expense;
+package com.expensetracker.dto.transaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public record ExpenseResponse(
+public record TransactionResponse(
         Long id,
         BigDecimal amount,
         LocalDate date,
         String description,
-        Integer categoryId
+        Long categoryId,
+        String categoryName
 ) {
 }

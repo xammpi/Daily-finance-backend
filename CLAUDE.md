@@ -9,13 +9,13 @@ Daily Finance Backend — production-ready REST API для отслеживан�
 
 ### Key Features
 - User authentication (JWT-based)
-- Wallet management with deposit/withdraw functionality
-- Direct wallet balance editing
+- Wallet management with multi-currency support
+- Transaction tracking (both income and expenses)
 - Multi-currency support (20 currencies)
-- Expense tracking with automatic balance deduction
+- Transaction tracking with automatic wallet updates
 - Balance validation (prevents negative balance)
-- Category management (simplified flat structure)
-- Comprehensive expense statistics:
+- Category management with type (INCOME/EXPENSE)
+- Comprehensive transaction statistics:
   - Today, week, and month expenses
   - Total expenses (all time)
   - Average daily/weekly/monthly spending
@@ -49,7 +49,7 @@ cp src/main/resources/application-local.yml.template src/main/resources/applicat
 # Production profile
 ./mvnw spring-boot:run -Pprod
 # Or run the built JAR with a specific profile
-java -jar target/expense-tracker-api-1.0.0.jar --spring.profiles.active=prod
+java -jar target/transaction-tracker-api-1.0.0.jar --spring.profiles.active=prod
 
 **Note:** Maven profiles are configured in pom.xml (local, dev, prod). The local profile is active by default for development.
 
@@ -83,7 +83,7 @@ java -jar target/expense-tracker-api-1.0.0.jar --spring.profiles.active=prod
 # Build with specific profile
 ./mvnw clean package -Pprod -DskipTests
 # Build Docker image
-docker build -t expense-tracker-api:latest .
+docker build -t transaction-tracker-api:latest .
 # Run with Docker Compose
 docker-compose up -d
 # View logs
@@ -118,43 +118,52 @@ src/
 │   │   │   ├── CorsConfig.java              # CORS configuration
 │   │   │   ├── OpenApiConfig.java           # Swagger/OpenAPI setup
 │   │   │   └── SecurityConfig.java          # Spring Security + JWT
-│   │   ├── controller/       # REST controllers (4 implemented)
+│   │   ├── controller/       # REST controllers (5 implemented)
 │   │   │   ├── AuthController.java
 │   │   │   ├── CategoryController.java
-│   │   │   ├── ExpenseController.java
+│   │   │   ├── CurrencyController.java
+│   │   │   ├── TransactionController.java
 │   │   │   └── UserController.java
 │   │   ├── dto/              # Data Transfer Objects
 │   │   │   ├── auth/         # LoginRequest, RegisterRequest, AuthResponse
 │   │   │   ├── category/     # CategoryRequest, CategoryResponse
 │   │   │   ├── common/       # Generic pagination & search DTOs (FilterRequest, PagedResponse, etc.)
-│   │   │   ├── expense/      # ExpenseRequest, ExpenseResponse
-│   │   │   └── user/         # DepositRequest, UserProfileResponse, BalanceSummaryResponse
-│   │   ├── entity/           # JPA entities (3 total + 1 enum)
+│   │   │   ├── currency/     # CurrencyResponse
+│   │   │   ├── transaction/  # TransactionRequest, TransactionResponse, TransactionStatisticsResponse
+│   │   │   └── user/         # UserProfileResponse, WalletResponse
+│   │   ├── entity/           # JPA entities (6 total + 1 enum)
+│   │   │   ├── BaseEntity.java
 │   │   │   ├── Category.java
-│   │   │   ├── Currency.java (enum)
-│   │   │   ├── Expense.java
-│   │   │   └── User.java
+│   │   │   ├── CategoryType.java (enum: INCOME, EXPENSE)
+│   │   │   ├── Currency.java
+│   │   │   ├── Transaction.java
+│   │   │   ├── User.java
+│   │   │   └── Wallet.java
 │   │   ├── exception/        # Exception handling
 │   │   │   ├── BadRequestException.java
 │   │   │   ├── ErrorResponse.java
 │   │   │   ├── GlobalExceptionHandler.java
 │   │   │   └── ResourceNotFoundException.java
-│   │   ├── mapper/           # MapStruct mappers (2 implemented)
+│   │   ├── mapper/           # MapStruct mappers (3 implemented)
 │   │   │   ├── CategoryMapper.java
-│   │   │   └── ExpenseMapper.java
-│   │   ├── repository/       # Spring Data JPA repositories (3 total)
+│   │   │   ├── CurrencyMapper.java
+│   │   │   └── TransactionMapper.java
+│   │   ├── repository/       # Spring Data JPA repositories (5 total)
 │   │   │   ├── CategoryRepository.java
-│   │   │   ├── ExpenseRepository.java
-│   │   │   └── UserRepository.java
+│   │   │   ├── CurrencyRepository.java
+│   │   │   ├── TransactionRepository.java
+│   │   │   ├── UserRepository.java
+│   │   │   └── WalletRepository.java
 │   │   ├── security/         # JWT authentication
 │   │   │   ├── CustomUserDetailsService.java
 │   │   │   ├── JwtAuthenticationFilter.java
 │   │   │   ├── JwtTokenProvider.java
 │   │   │   └── UserPrincipal.java
-│   │   ├── service/          # Business logic services (4 implemented)
+│   │   ├── service/          # Business logic services (5 implemented)
 │   │   │   ├── AuthService.java
 │   │   │   ├── CategoryService.java
-│   │   │   ├── ExpenseService.java
+│   │   │   ├── CurrencyService.java
+│   │   │   ├── TransactionService.java
 │   │   │   └── UserService.java
 │   │   └── specification/    # Generic search specification builders
 │   │       ├── GenericSpecification.java
@@ -167,13 +176,22 @@ src/
 │           ├── V1__create_users_table.sql
 │           ├── V2__create_accounts_table.sql (deprecated - removed in V8)
 │           ├── V3__create_categories_table.sql
-│           ├── V4__create_transactions_table.sql (deprecated - removed in V10)
+│           ├── V4__create_transactions_table.sql (deprecated - removed in V11)
 │           ├── V5__create_budgets_table.sql (deprecated - removed in V12)
 │           ├── V6__create_recurring_transactions_table.sql (deprecated - removed in V12)
 │           ├── V7__refactor_categories_table.sql
-│           ├── V8__remove_accounts_add_balance_to_users.sql
+│           ├── V8__remove_accounts_add_balance_to_users.sql (deprecated - replaced by V14)
 │           ├── V11__drop_transactions_and_create_expenses.sql
-│           └── V12__drop_budgets_and_recurring_transactions.sql
+│           ├── V12__drop_budgets_and_recurring_transactions.sql
+│           ├── V13__create_currencies_table.sql
+│           ├── V14__create_wallets_and_migrate_balance.sql
+│           ├── V15__create_deposits_table.sql
+│           ├── V16_create_wallets_for_existing_users.sql
+│           ├── V17__add_mdl_currency.sql
+│           ├── V18__rename_expanses_table_to_transactions.sql
+│           ├── V19__add_transactional_type.sql (deprecated - removed in V21)
+│           ├── V20__add_transactional_type_to_categories.sql
+│           └── V21__remove_transacation_type_from_transactions-table.sql
 └── test/                    # Test structure (to be implemented)
     └── java/com/expensetracker/
 ```
@@ -182,29 +200,52 @@ src/
 
 **Core Entities (All tables created via Flyway migrations):**
 
-1. **users** - User accounts with authentication and balance management
-   - Fields: id, email, username, password (BCrypt), first_name, last_name, enabled, balance, currency, created_at, updated_at
+1. **users** - User accounts with authentication
+   - Fields: id, email, username, password (BCrypt), first_name, last_name, enabled, created_at, updated_at
    - Indexes: email, username (unique)
-   - V8 migration added: balance (default 0.00), currency (default USD)
-   - Currency enum: USD, EUR, GBP, JPY, CNY, RUB, UAH, PLN, CHF, CAD, AUD, BRL, INR, KRW, MXN, SEK, NOK, DKK, TRY, ZAR
+   - Note: balance and currency moved to wallets table in V14
 
-2. **categories** - Expense categories (simplified structure)
-   - Fields: id, name, description, user_id, created_at, updated_at
-   - Simple flat structure without hierarchy
+2. **wallets** - User wallet with balance and currency
+   - Fields: id, amount, user_id (unique), currency_id, created_at, updated_at
+   - One-to-one relationship with users
+   - Automatically updated by transactions
+   - Indexes: user_id, currency_id
+   - Created in V14 migration
+
+3. **currencies** - Available currencies
+   - Fields: id, code (unique), name, symbol, created_at, updated_at
+   - Pre-populated with 20 currencies (USD, EUR, GBP, JPY, CNY, RUB, UAH, PLN, CHF, CAD, AUD, BRL, INR, KRW, MXN, SEK, NOK, DKK, TRY, ZAR)
+   - MDL added in V17
+   - Indexes: code
+   - Created in V13 migration
+
+4. **categories** - Transaction categories (INCOME or EXPENSE)
+   - Fields: id, name, description, type (INCOME/EXPENSE), user_id, created_at, updated_at
+   - Flat structure without hierarchy
+   - Each category has a type (CategoryType enum)
    - Indexes: user_id
-   - Note: V7 migration removed unused fields (type, icon, color, parent_id)
+   - V20 migration added type field
 
-3. **expenses** - Expense tracking records
+5. **transactions** - Transaction records (income or expenses)
    - Fields: id, amount, date, description, user_id, category_id, created_at, updated_at
-   - Automatically deducts from user balance on create
-   - Adjusts balance on update/delete
+   - Automatically updates wallet balance based on category type
+   - EXPENSE categories: deduct from wallet
+   - INCOME categories: add to wallet
    - Indexes: user_id, category_id, date, (user_id + date composite)
-   - Note: V11 migration created this table; V10 dropped old transactions table
+   - V18 migration renamed from expenses to transactions
+
+6. **deposits** - Deposit records
+   - Fields: id, amount, date, description, user_id, created_at, updated_at
+   - Tracks deposit history
+   - Created in V15 migration
 
 **Entity Relationships:**
-- User → Expenses (1:N)
+- User → Wallet (1:1)
+- Wallet → Currency (N:1)
+- User → Transactions (1:N)
 - User → Categories (1:N)
-- Category → Expenses (1:N)
+- User → Deposits (1:N)
+- Category → Transactions (1:N)
 
 ### API Architecture
 **Style:** RESTful API with JSON payloads
@@ -223,26 +264,18 @@ Currencies (Public):
 
 User Profile & Wallet (Authenticated):
 - GET    /api/v1/user/profile           # Get current user profile
-- GET    /api/v1/user/wallet            # Get detailed wallet info (balance, totals, warnings)
-- POST   /api/v1/user/deposit           # Deposit money to wallet
-- POST   /api/v1/user/withdraw          # Withdraw money from wallet (with balance check)
-- PUT    /api/v1/user/balance           # Directly set/update wallet balance
+- GET    /api/v1/user/wallet            # Get detailed wallet info (balance, currency)
 - PUT    /api/v1/user/currency          # Update currency preference
-- GET    /api/v1/user/balance-summary   # Get balance with today/week/month expenses
 
-Expenses (Authenticated):
-- GET    /api/v1/expenses                      # List all user expenses
-- POST   /api/v1/expenses                      # Create expense (with balance validation)
-- GET    /api/v1/expenses/{id}                 # Get expense by ID
-- PUT    /api/v1/expenses/{id}                 # Update expense (adjusts balance)
-- DELETE /api/v1/expenses/{id}                 # Delete expense (adds back to balance)
-- GET    /api/v1/expenses/statistics           # Get comprehensive expense statistics
-- GET    /api/v1/expenses/statistics/by-category  # Get category-wise statistics (date range)
-- GET    /api/v1/expenses/filter               # Filter expenses (legacy, specific fields)
-- POST   /api/v1/expenses/search               # Advanced search with dynamic criteria (NEW)
+Transactions (Authenticated):
+- POST   /api/v1/transactions                  # Create transaction (with balance validation)
+- GET    /api/v1/transactions/{id}             # Get transaction by ID
+- PUT    /api/v1/transactions/{id}             # Update transaction (adjusts balance)
+- DELETE /api/v1/transactions/{id}             # Delete transaction (adjusts balance)
+- GET    /api/v1/transactions/statistics       # Get comprehensive transaction statistics
+- POST   /api/v1/transactions/search           # Advanced search with dynamic criteria
 
 Categories (Authenticated):
-- GET    /api/v1/categories        # List all user categories
 - POST   /api/v1/categories        # Create category (name, description)
 - GET    /api/v1/categories/{id}   # Get category by ID
 - PUT    /api/v1/categories/{id}   # Update category
@@ -291,47 +324,32 @@ Controller → Service → Repository → Database
 - **Secured Endpoints**: All other /api/v1/** routes require Bearer token
 
 **6. Wallet & Balance Management**
-- Wallet balance automatically updated when expenses are created/updated/deleted
-- **Deposit**: Adds money to wallet (balance += deposit.amount)
-- **Withdraw**: Removes money from wallet with validation (balance >= withdraw.amount)
-- **Direct Update**: Allows setting wallet balance to any non-negative value
-- **Creating expense**: Validates sufficient balance, then deducts (balance -= expense.amount)
-- **Updating expense**: Reverses old amount, validates, applies new amount
-- **Deleting expense**: Adds amount back to wallet (balance += expense.amount)
-- **Balance Validation**: All operations that decrease balance check for sufficient funds
+- Wallet balance automatically updated when transactions are created/updated/deleted
+- Transactions can be INCOME or EXPENSE based on category type
+- **Creating EXPENSE transaction**: Validates sufficient balance, then deducts from wallet
+- **Creating INCOME transaction**: Adds to wallet balance
+- **Updating transaction**: Reverses old amount, applies new amount based on category type
+- **Deleting transaction**: Reverses transaction effect on wallet
+- **Balance Validation**: EXPENSE transactions check for sufficient funds before creation
 - Service methods marked with @Transactional for ACID compliance
 - Rollback on exceptions to maintain data integrity
+- Each user has one wallet with a selected currency
 
-**7. Expense Statistics & Analytics**
-- **BalanceSummaryResponse** provides:
-  - currentBalance: Current wallet balance
-  - todayExpenses: Total spent today
-  - weekExpenses: Total spent this week (Monday-Sunday)
-  - monthExpenses: Total spent this month
+**7. Transaction Statistics & Analytics**
+- **TransactionStatisticsResponse** provides comprehensive statistics:
+  - todayTransactions, weekTransactions, monthTransactions
+  - totalTransactions: All-time total
+  - averageDailyTransactions, averageWeeklyTransactions, averageMonthlyTransactions
+  - previousWeekTransactions, previousMonthTransactions: For comparison
   - currency: User's selected currency
 
-- **ExpenseStatisticsResponse** provides comprehensive statistics:
-  - todayExpenses, weekExpenses, monthExpenses
-  - totalExpenses: All-time total
-  - averageDailyExpenses, averageWeeklyExpenses, averageMonthlyExpenses
-  - previousWeekExpenses, previousMonthExpenses: For comparison
-  - currency: User's selected currency
-
-- **CategoryStatisticsResponse** provides category breakdown:
-  - Date range (startDate, endDate)
-  - Total expenses for the period
-  - Per-category statistics: total amount, expense count, percentage
-  - Sorted by highest spending first
-
-- **WalletResponse** provides detailed wallet info:
-  - Current balance and currency
-  - Total deposits count and amount
-  - Total expenses count and amount
-  - Last transaction date
-  - Low balance warning (triggers when balance < 100)
+- **WalletResponse** provides wallet information:
+  - Wallet ID
+  - Current balance
+  - Currency (full Currency entity with code, name, symbol)
 
 **8. Generic Search & Filter Framework**
-- **Universal approach** that works with ANY entity (not just Expense/Category)
+- **Universal approach** that works with ANY entity (Transaction, Category, future entities)
 - **Architecture:**
   - `GenericSpecification<T>` - Converts SearchCriteria to JPA Specification
   - `SpecificationBuilder` - Combines multiple specifications with AND/OR logic
@@ -339,7 +357,7 @@ Controller → Service → Repository → Database
   - `SearchOperation` enum - 14 operations (EQUALS, LIKE, BETWEEN, etc.)
 - **Features:**
   - Dynamic query building using JPA Criteria API (no SQL injection risk)
-  - Nested field support (e.g., search by "category.name" in Expense)
+  - Nested field support (e.g., search by "category.name" in Transaction)
   - Automatic type conversion (String → Long, LocalDate, BigDecimal, etc.)
   - Pagination with configurable size (max 100)
   - Flexible sorting (any field, ASC/DESC)
@@ -349,8 +367,8 @@ Controller → Service → Repository → Database
   - Add user filter for security
   - Execute with repository.findAll(spec, pageable)
   - Map results to DTOs
-- **Extensibility:** Adding search to new entities requires only 3 steps (see GENERIC_SEARCH_GUIDE.md)
-- **Frontend integration:** See FRONTEND_API_GUIDE.md for complete examples
+- **Extensibility:** Adding search to new entities requires minimal code
+- **Frontend integration:** See API_GUIDE.md for complete examples
 
 ## Important Notes
 
@@ -371,7 +389,7 @@ Controller → Service → Repository → Database
 - Naming convention: `V{version}__{description}.sql` (e.g., `V1__create_users_table.sql`)
 - Migrations run automatically on startup (Flyway enabled)
 - Always test migrations on a copy of production data before deploying
-- Current version: V12 (latest migration: V12 drops budgets and recurring_transactions tables)
+- Current version: V21 (latest migration: V21 removes transaction type from transactions table)
 
 ### Code Conventions
 - **SOLID principles**: Single responsibility, dependency injection via constructor
@@ -387,37 +405,41 @@ Controller → Service → Repository → Database
 - User authentication (register, login with JWT)
 - User profile management (get profile, update currency)
 - Wallet management:
-  - Deposit money to wallet
-  - Withdraw money from wallet (with balance validation)
-  - Direct wallet balance editing
+  - One wallet per user with balance and currency
+  - Automatic wallet creation for new users
+  - Currency selection from 21 available currencies
   - Detailed wallet information endpoint
-  - Low balance warnings
-- Multi-currency support (20 currencies, user-selectable, public endpoint to get all currencies)
-- Expense tracking:
-  - Create, read, update, delete expenses
-  - Automatic balance deduction with validation
-  - Prevents negative balance on expense creation
+- Multi-currency support (21 currencies, user-selectable, public endpoint to get all currencies)
+- Transaction tracking:
+  - Create, read, update, delete transactions
+  - Support for both INCOME and EXPENSE transactions
+  - Automatic wallet updates based on transaction type
+  - Balance validation (prevents negative balance on EXPENSE transactions)
+- Category management:
+  - CRUD operations for categories
+  - Categories have types (INCOME or EXPENSE)
+  - Flat structure (no hierarchy)
+  - User-specific categories
 - Comprehensive analytics and statistics:
-  - Balance summary (today, week, month expenses)
-  - Expense statistics (totals, averages, comparisons)
-  - Category-wise breakdown with percentages
-  - Date range filtering for statistics
-- **Generic Search & Filter Framework** (NEW):
-  - Works with ANY entity (Expense, Category, future entities)
+  - Transaction statistics (today, week, month totals)
+  - All-time totals
+  - Average daily/weekly/monthly spending
+  - Comparisons with previous periods
+- **Generic Search & Filter Framework**:
+  - Works with ANY entity (Transaction, Category, future entities)
   - 14 search operations (EQUALS, LIKE, GREATER_THAN, BETWEEN, etc.)
   - Dynamic criteria building with JPA Specifications
   - Nested field support (e.g., category.name)
   - Pagination and sorting
   - Type-safe with automatic conversion
   - See: `API_GUIDE.md` for complete search documentation
-- Category CRUD (simplified flat structure)
-- Database schema with 12 migrations (V1-V12)
+- Database schema with 21 migrations (V1-V21)
 - Security configuration with JWT bearer token authentication
 - API documentation (Swagger UI)
 - Global exception handling
-- Balance validation (prevents negative balance)
 - Maven profiles (local, dev, prod) with environment-specific configurations
 - CORS configuration for frontend integration
+- Rich domain models with validation
 
 ❌ **Not Yet Implemented:**
 - CSV export functionality
@@ -427,22 +449,22 @@ Controller → Service → Repository → Database
 - Customizable low balance thresholds
 
 **Recent Major Changes (December 2024):**
-- **NEW**: Added comprehensive expense statistics with averages and comparisons
-- **NEW**: Added category-wise statistics with percentage breakdowns
-- **NEW**: Added wallet details endpoint with transaction summaries
-- **NEW**: Added withdraw functionality with balance validation
-- **NEW**: Added direct wallet balance editing
-- **NEW**: Implemented balance validation to prevent negative balance
-- **NEW**: Added low balance warning system
-- V12 Migration: Removed Budget and RecurringTransaction entities and tables (simplified scope)
-- V11 Migration: Consolidated expense table creation (combined V9 and V10 into single migration)
-- V8 Migration: Removed Account entity entirely, moved balance/currency to User
-- V7 Migration: Simplified Category entity (removed type, icon, color, parent_id)
-- Architecture simplification: User → Expenses (instead of User → Accounts → Transactions)
-- Expenses only track spending (no INCOME/EXPENSE type), balance managed via deposits
-- Added UserService and UserController for balance operations
-- Enhanced balance summary endpoint with today/week/month expenses
-- Removed budget and recurring transaction features to focus on core expense tracking
+- **REFACTORED**: Renamed Expense → Transaction (V18)
+- **NEW**: Added CategoryType enum (INCOME, EXPENSE) to categories (V20)
+- **NEW**: Transactions now support both INCOME and EXPENSE based on category type
+- **NEW**: Created separate Wallet entity (V14) - moved balance from User to Wallet
+- **NEW**: Added Currency entity and table (V13) with 21 pre-populated currencies
+- **NEW**: Added Deposits tracking table (V15)
+- **NEW**: Comprehensive transaction statistics with averages and comparisons
+- **NEW**: Generic Search & Filter Framework for dynamic queries
+- **CLEANED**: Removed dead code (Deposit entity, DepositRepository, unused DTOs, unused methods)
+- **REMOVED**: Transaction type field from transactions table (V21) - type now determined by category
+- V12 Migration: Removed Budget and RecurringTransaction entities and tables
+- V7 Migration: Simplified Category entity (removed icon, color, parent_id)
+- Architecture: User → Wallet (1:1), User → Transactions (1:N), Category → Transactions (1:N)
+- Balance management: Automatic wallet updates based on transaction category type
+- Removed budget and recurring transaction features to focus on core transaction tracking
+- Code cleanup: Removed unused imports, methods, and constants
 
 ### Common Commands Quick Reference
 ```bash

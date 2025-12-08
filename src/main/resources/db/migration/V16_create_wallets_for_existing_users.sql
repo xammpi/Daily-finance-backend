@@ -1,10 +1,5 @@
--- Migration to create wallets for existing users who don't have one
--- This ensures data integrity after the wallet system implementation
-
 BEGIN;
 
--- Insert wallets for users who don't have one yet
--- Default to USD currency and 0.00 balance
 INSERT INTO wallets (user_id, amount, currency_id, created_at, updated_at)
 SELECT
     u.id,

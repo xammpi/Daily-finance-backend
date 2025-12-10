@@ -4,39 +4,23 @@ on:
   push:
     branches: [ "main" ]
 
-# Мы даем права явно, чтобы GitHub не блокировал ничего лишнего
 permissions:
-  contents: read      # Чтобы скачать код
-  packages: write     # Чтобы загрузить Docker-образ
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. СКАЧИВАЕМ КОД (Самое важное)
+      # 1. Скачиваем код (обязательно!)
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. ПРОВЕРКА (Debug)
-      # Этот шаг покажет в логах, скачались ли файлы.
-      # Если тут пусто — значит проблема в checkout.
-      - name: Check files
-        run: ls -la
+      # ❌ МЫ УДАЛИЛИ ШАГИ "Set up Java" и "Build with Maven"
+      # Они больше не нужны, так как сборка происходит внутри Dockerfile
 
-      # 3. Настройка Java
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '21'
-          cache: 'maven'
-
-      # 4. Сборка JAR
-      - name: Build with Maven
-        run: mvn -B package -DskipTests --file pom.xml
-
-      # 5. Логин в Docker Registry
+      # 2. Логин в GitHub Registry
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -44,7 +28,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6. Сборка и отправка Docker-образа
+      # 3. Сборка и отправка
+      # Docker сам скачает Maven, соберет проект и упакует результат
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:

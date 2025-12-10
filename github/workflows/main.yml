@@ -14,17 +14,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Check Java Security File
-        run: |
-          ls -l $JAVA_HOME/conf/security/java.security || ls -l $JAVA_HOME/lib/security/java.security
-      # 1. Настройка Java 21
-      - name: Set up JDK 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
           distribution: 'temurin'
-          cache: 'maven'
+          java-version: '21'
 
       # 2. Сборка JAR (без тестов)
       - name: Build with Maven

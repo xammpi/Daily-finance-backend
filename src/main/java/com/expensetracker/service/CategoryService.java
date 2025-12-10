@@ -60,7 +60,8 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {
         Long userId = getCurrentUserId();
-        Category category = categoryRepository.findById(id)
+        // Use optimized query that fetches category with user in single query
+        Category category = categoryRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         // Use rich domain model for ownership check

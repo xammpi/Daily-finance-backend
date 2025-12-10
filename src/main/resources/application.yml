@@ -10,6 +10,29 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
+          batch_size: 25
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+        connection:
+          provider_disables_autocommit: true
+        # Cache configuration removed - using Spring Cache abstraction instead
+        # Second-level cache disabled to avoid JCache dependency
+        generate_statistics: false
+
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: false
+      pool-name: HikariPool-ExpenseTracker
 
   flyway:
     enabled: true

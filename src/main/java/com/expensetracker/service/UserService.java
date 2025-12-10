@@ -1,13 +1,14 @@
 package com.expensetracker.service;
 
-import com.expensetracker.dto.user.*;
+import com.expensetracker.dto.user.UserProfileResponse;
+import com.expensetracker.dto.user.WalletResponse;
 import com.expensetracker.entity.Currency;
 import com.expensetracker.entity.User;
 import com.expensetracker.entity.Wallet;
 import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
+import com.expensetracker.mapper.CurrencyMapper;
 import com.expensetracker.repository.CurrencyRepository;
-import com.expensetracker.repository.TransactionRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.repository.WalletRepository;
 import com.expensetracker.security.UserPrincipal;
@@ -16,10 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -27,7 +24,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final CurrencyRepository currencyRepository;
-    private final TransactionRepository transactionRepository;
+    private final CurrencyMapper currencyMapper;
 
     private Long getCurrentUserId() {
         UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext()
@@ -38,7 +35,9 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile() {
         Long userId = getCurrentUserId();
-        User user = userRepository.findById(userId)
+        // Use optimized query that fetches user with wallet in single query
+        // Note: User authentication is already cached via CustomUserDetailsService
+        User user = userRepository.findByIdWithWallet(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Wallet wallet = user.getWallet();
@@ -59,7 +58,7 @@ public class UserService {
     @Transactional
     public UserProfileResponse updateCurrency(Long currencyId) {
         Long userId = getCurrentUserId();
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdWithWallet(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Wallet wallet = user.getWallet();
@@ -87,7 +86,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public WalletResponse getWalletDetails() {
         Long userId = getCurrentUserId();
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdWithWallet(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Wallet wallet = user.getWallet();
@@ -98,7 +97,7 @@ public class UserService {
         return new WalletResponse(
                 wallet.getId(),
                 wallet.getAmount(),
-                wallet.getCurrency()
+                currencyMapper.toResponse(wallet.getCurrency())
         );
     }
 

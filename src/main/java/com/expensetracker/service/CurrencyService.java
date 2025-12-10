@@ -19,9 +19,11 @@ public class CurrencyService {
 
     /**
      * Get all available currencies
+     * Cached since currencies are static data
      * @return list of all currencies
      */
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("currencies")
     public List<CurrencyResponse> getAllCurrencies() {
         return currencyRepository.findAll()
                 .stream()

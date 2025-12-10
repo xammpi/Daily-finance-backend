@@ -3,12 +3,17 @@ package com.expensetracker.service;
 
 import com.expensetracker.dto.common.FilterRequest;
 import com.expensetracker.dto.common.PagedResponse;
+import com.expensetracker.dto.currency.CurrencyResponse;
+import com.expensetracker.dto.transaction.StatisticsSummaryProjection;
 import com.expensetracker.dto.transaction.TransactionRequest;
 import com.expensetracker.dto.transaction.TransactionResponse;
+import com.expensetracker.dto.transaction.TransactionSearchResponse;
+import com.expensetracker.dto.transaction.TransactionSearchSummary;
 import com.expensetracker.dto.transaction.TransactionStatisticsResponse;
 import com.expensetracker.entity.*;
 import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
+import com.expensetracker.mapper.CurrencyMapper;
 import com.expensetracker.mapper.TransactionMapper;
 import com.expensetracker.repository.CategoryRepository;
 import com.expensetracker.repository.TransactionRepository;
@@ -16,6 +21,12 @@ import com.expensetracker.repository.UserRepository;
 import com.expensetracker.repository.WalletRepository;
 import com.expensetracker.security.UserPrincipal;
 import com.expensetracker.specification.SpecificationBuilder;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,15 +38,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.math.RoundingMode.HALF_UP;
-import static java.time.temporal.ChronoUnit.DAYS;
-import static java.time.temporal.ChronoUnit.MONTHS;
+import static com.expensetracker.entity.CategoryType.EXPENSE;
+import static java.time.DayOfWeek.MONDAY;
+import static java.time.DayOfWeek.SUNDAY;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +56,8 @@ public class TransactionService {
     private final WalletRepository walletRepository;
     private final CategoryRepository categoryRepository;
     private final TransactionMapper transactionMapper;
+    private final CurrencyMapper currencyMapper;
+    private final EntityManager entityManager;
 
     private Long getCurrentUserId() {
         UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext()
@@ -56,18 +68,28 @@ public class TransactionService {
     @Transactional
     public TransactionResponse createTransaction(TransactionRequest request) {
         Long userId = getCurrentUserId();
-        User user = userRepository.findById(userId)
+        // Use optimized query that fetches user with wallet and currency in single query
+        User user = userRepository.findByIdWithWallet(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Category category = categoryRepository.findById((request.categoryId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        // Use rich domain model for ownership check
         if (!category.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        // Use constructor - entity manages its own state
+        Wallet wallet = user.getWallet();
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
+
+        // Validate sufficient balance for expense transactions
+        if (category.getType() == EXPENSE && wallet.hasSufficientFunds(request.amount())) {
+            throw new BadRequestException("Insufficient balance. Current balance: " +
+                    wallet.getAmount() + " " + wallet.getCurrency().getCode());
+        }
+
         Transaction transaction = new Transaction(
                 request.amount(),
                 request.date(),
@@ -76,40 +98,58 @@ public class TransactionService {
                 category
         );
         transaction = transactionRepository.save(transaction);
-        Wallet wallet = user.getWallet();
-        if (transaction.getCategory().getType().equals(CategoryType.EXPENSE)) {
-            wallet.withdraw(transaction.getAmount());
-        } else wallet.deposit(transaction.getAmount());
+
+        // Apply transaction to wallet
+        wallet.applyTransaction(transaction.getAmount(), category.getType());
         walletRepository.save(wallet);
+
         return transactionMapper.toResponse(transaction);
     }
 
     @Transactional
     public TransactionResponse updateTransaction(Long id, TransactionRequest request) {
         Long userId = getCurrentUserId();
-        Transaction transaction = transactionRepository.findById(id)
+        // Use optimized query that fetches transaction with all relations in single query
+        Transaction transaction = transactionRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
-        User user = transaction.getUser();
+        if (!transaction.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Transaction does not belong to current user");
+        }
 
-        Category category = categoryRepository.findById((request.categoryId()))
+        User user = transaction.getUser();
+        Wallet wallet = user.getWallet();
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
+
+        Category newCategory = categoryRepository.findById((request.categoryId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        // Use rich domain model for ownership check
-        if (!category.belongsToUser(userId)) {
+        if (!newCategory.belongsToUser(userId)) {
             throw new BadRequestException("Category does not belong to current user");
         }
 
-        // Use behavior method - entity manages its own state
-        transaction.updateDetails(request.date(), request.description(), category);
-        // Save entities
-        transaction = transactionRepository.save(transaction);
-        Wallet wallet = user.getWallet();
-        if (transaction.getCategory().getType().equals(CategoryType.EXPENSE)) {
-            wallet.withdraw(transaction.getAmount());
-        } else wallet.deposit(transaction.getAmount());
+        BigDecimal oldAmount = transaction.getAmount();
+        CategoryType oldCategoryType = transaction.getCategory().getType();
 
-        walletRepository.save(user.getWallet());
+        // Revert old transaction effect
+        wallet.revertTransaction(oldAmount, oldCategoryType);
+
+        // Validate sufficient balance for new expense transaction
+        if (newCategory.getType() == EXPENSE && wallet.hasSufficientFunds(request.amount())) {
+            throw new BadRequestException("Insufficient balance. Current balance: " +
+                    wallet.getAmount() + " " + wallet.getCurrency().getCode());
+        }
+
+        // Apply new transaction effect
+        wallet.applyTransaction(request.amount(), newCategory.getType());
+
+        // Update transaction details
+        transaction.updateDetails(request.amount(), request.date(), request.description(), newCategory);
+
+        transaction = transactionRepository.save(transaction);
+        walletRepository.save(wallet);
 
         return transactionMapper.toResponse(transaction);
     }
@@ -117,7 +157,8 @@ public class TransactionService {
     @Transactional(readOnly = true)
     public TransactionResponse getTransactionById(Long id) {
         Long userId = getCurrentUserId();
-        Transaction transaction = transactionRepository.findById(id)
+        // Use optimized query that fetches transaction with all relations in single query
+        Transaction transaction = transactionRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
         if (!transaction.getUser().getId().equals(userId)) {
@@ -129,20 +170,24 @@ public class TransactionService {
     @Transactional
     public void deleteTransaction(Long id) {
         Long userId = getCurrentUserId();
-        Transaction transaction = transactionRepository.findByUserIdAndId(userId, id)
+        // Use optimized query that fetches transaction with user and wallet in single query
+        Transaction transaction = transactionRepository.findByUserIdAndIdWithWallet(userId, id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
 
-        // Save and delete
-        transactionRepository.delete(transaction);
         Wallet wallet = transaction.getUser().getWallet();
-        wallet.deposit(transaction.getAmount());
+        if (wallet == null) {
+            throw new ResourceNotFoundException("Wallet not found for user");
+        }
+        wallet.revertTransaction(transaction.getAmount(), transaction.getCategory().getType());
+        transactionRepository.delete(transaction);
         walletRepository.save(wallet);
     }
 
     @Transactional(readOnly = true)
     public TransactionStatisticsResponse getTransactionStatistics() {
         Long userId = getCurrentUserId();
-        User user = userRepository.findById(userId)
+        // Use optimized query that fetches user with wallet and currency in single query
+        User user = userRepository.findByIdWithWallet(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Wallet wallet = user.getWallet();
@@ -151,74 +196,24 @@ public class TransactionService {
         }
 
         LocalDate today = LocalDate.now();
-
-        // Calculate today's transactions
-        BigDecimal todayTransaction = transactionRepository
-                .getSumByUserIdAndDateBetween(userId, today, today);
-
-        // Calculate this week's transactions (Monday to Sunday)
-        LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
-        LocalDate endOfWeek = today.with(DayOfWeek.SUNDAY);
-        BigDecimal weekTransactions = transactionRepository
-                .getSumByUserIdAndDateBetween(userId, startOfWeek, endOfWeek);
-
-        // Calculate this month's transactions
+        LocalDate weekStart = today.with(MONDAY);
+        LocalDate weekEnd = today.with(SUNDAY);
         YearMonth currentMonth = YearMonth.now();
-        LocalDate startOfMonth = currentMonth.atDay(1);
-        LocalDate endOfMonth = currentMonth.atEndOfMonth();
-        BigDecimal monthTransactions = transactionRepository
-                .getSumByUserIdAndDateBetween(userId, startOfMonth, endOfMonth);
+        LocalDate monthStart = currentMonth.atDay(1);
+        LocalDate monthEnd = currentMonth.atEndOfMonth();
 
-        // Calculate total transactions (all time)
-        BigDecimal totalTransactions = transactionRepository.getTotalTransactionsByUserId(userId);
+        // Single batched query with type-safe DTO projection (67% reduction in DB calls)
+        StatisticsSummaryProjection statistics = transactionRepository.getStatisticsSummary(
+                userId, today, weekStart, weekEnd, monthStart, monthEnd, EXPENSE
+        );
 
-        // Calculate previous week's transactions
-        LocalDate startOfPreviousWeek = startOfWeek.minusWeeks(1);
-        LocalDate endOfPreviousWeek = endOfWeek.minusWeeks(1);
-        BigDecimal previousWeekTransactions = transactionRepository
-                .getSumByUserIdAndDateBetween(userId, startOfPreviousWeek, endOfPreviousWeek);
-
-        // Calculate previous month's transactions
-        YearMonth previousMonth = currentMonth.minusMonths(1);
-        LocalDate startOfPreviousMonth = previousMonth.atDay(1);
-        LocalDate endOfPreviousMonth = previousMonth.atEndOfMonth();
-        BigDecimal previousMonthTransactions = transactionRepository
-                .getSumByUserIdAndDateBetween(userId, startOfPreviousMonth, endOfPreviousMonth);
-
-        // Calculate averages
-        // Get the first transactions date to calculate average daily expenses
-        List<Transaction> allTransactions = transactionRepository.findByUserId(userId);
-        LocalDate firstTransactionDate = allTransactions.stream()
-                .map(Transaction::getDate)
-                .min(LocalDate::compareTo)
-                .orElse(today);
-
-        long daysSinceFirstTransaction = Math.max(1, DAYS.between(firstTransactionDate, today) + 1);
-        BigDecimal averageDailyTransaction = totalTransactions.divide(
-                BigDecimal.valueOf(daysSinceFirstTransaction), 2, HALF_UP);
-
-        // Average weekly transactions (based on total weeks since first transaction)
-        long weeksSinceFirstTransaction = Math.max(1, daysSinceFirstTransaction / 7);
-        BigDecimal averageWeeklyTransactions = totalTransactions.divide(
-                BigDecimal.valueOf(weeksSinceFirstTransaction), 2, HALF_UP);
-
-        // Average monthly transactions (based on total months since first transaction)
-        long monthsSinceFirstTransaction =
-                Math.max(1, MONTHS.between(YearMonth.from(firstTransactionDate), YearMonth.from(today)) + 1);
-        BigDecimal averageMonthlyTransactions =
-                totalTransactions.divide(BigDecimal.valueOf(monthsSinceFirstTransaction), 2, HALF_UP);
+        CurrencyResponse currencyResponse = currencyMapper.toResponse(wallet.getCurrency());
 
         return new TransactionStatisticsResponse(
-                todayTransaction,
-                weekTransactions,
-                monthTransactions,
-                totalTransactions,
-                averageDailyTransaction,
-                averageWeeklyTransactions,
-                averageMonthlyTransactions,
-                previousWeekTransactions,
-                previousMonthTransactions,
-                wallet.getCurrency()
+                statistics.todayAmount(),
+                statistics.weekAmount(),
+                statistics.monthAmount(),
+                currencyResponse
         );
     }
 
@@ -240,7 +235,7 @@ public class TransactionService {
      * }
      */
     @Transactional(readOnly = true)
-    public PagedResponse<TransactionResponse> searchTransactions(FilterRequest filterRequest) {
+    public TransactionSearchResponse searchTransactions(FilterRequest filterRequest) {
         Long userId = getCurrentUserId();
         Specification<Transaction> spec = SpecificationBuilder.build(filterRequest);
         Specification<Transaction> userSpec = (root, query, cb) ->
@@ -263,11 +258,60 @@ public class TransactionService {
                 .map(transactionMapper::toResponse)
                 .collect(Collectors.toList());
 
-        return PagedResponse.of(
+        // Calculate summary using efficient aggregation query (no entity loading)
+        TransactionSearchSummary summary = calculateSearchSummaryWithAggregation(spec);
+
+        PagedResponse<TransactionResponse> pagedResponse = PagedResponse.of(
                 transactionResponse,
                 transactionPage.getNumber(),
                 transactionPage.getSize(),
                 transactionPage.getTotalElements()
+        );
+
+        return TransactionSearchResponse.of(pagedResponse, summary);
+    }
+
+    /**
+     * Calculate summary using JPA Criteria API aggregation (efficient - no entity loading)
+     * Uses a single aggregation query instead of loading all entities
+     */
+    private TransactionSearchSummary calculateSearchSummaryWithAggregation(Specification<Transaction> spec) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> cq = cb.createTupleQuery();
+        Root<Transaction> root = cq.from(Transaction.class);
+
+        // Apply the search specification as predicate
+        Predicate predicate = spec.toPredicate(root, cq, cb);
+
+        // Build aggregation query
+        cq.multiselect(
+                cb.coalesce(cb.sum(
+                        cb.<BigDecimal>selectCase()
+                                .when(cb.equal(root.get("category").get("type"), CategoryType.EXPENSE),
+                                        root.get("amount"))
+                                .otherwise(BigDecimal.ZERO)
+                ), BigDecimal.ZERO).alias("totalExpense"),
+                cb.coalesce(cb.sum(
+                        cb.<BigDecimal>selectCase()
+                                .when(cb.equal(root.get("category").get("type"), CategoryType.INCOME),
+                                        root.get("amount"))
+                                .otherwise(BigDecimal.ZERO)
+                ), BigDecimal.ZERO).alias("totalIncome"),
+                cb.count(root).alias("count")
+        ).where(predicate);
+
+        Tuple result = entityManager.createQuery(cq).getSingleResult();
+
+        BigDecimal totalExpense = result.get("totalExpense", BigDecimal.class);
+        BigDecimal totalIncome = result.get("totalIncome", BigDecimal.class);
+        Long count = result.get("count", Long.class);
+        BigDecimal totalAmount = totalExpense.add(totalIncome);
+
+        return new TransactionSearchSummary(
+                totalAmount,
+                count,
+                totalExpense,
+                totalIncome
         );
     }
 

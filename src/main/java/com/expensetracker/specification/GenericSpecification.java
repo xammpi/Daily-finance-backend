@@ -36,13 +36,11 @@ public class GenericSpecification<T> implements Specification<T> {
         Object valueTo = criteria.getValueTo();
 
         jakarta.persistence.criteria.Path<?> path;
-        // --- SPECIAL CASE: handle fields ending with "Id" ---
         if (field.endsWith("Id")) {
             String relation = field.substring(0, field.length() - 2); // categoryId → category
             var join = root.join(relation);
             path = join.get("id");
         } else {
-            // Handle nested fields "category.name"
             String[] fieldParts = field.split("\\.");
             path = root;
             for (String part : fieldParts) {

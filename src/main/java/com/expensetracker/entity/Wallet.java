@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+import static com.expensetracker.entity.CategoryType.EXPENSE;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -43,11 +45,24 @@ public class Wallet extends BaseEntity {
         this.amount = this.amount.subtract(withdrawAmount);
     }
 
-    public void updateBalance(BigDecimal newBalance) {
-        if (newBalance == null || newBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Balance cannot be negative");
+    public void applyTransaction(BigDecimal amount, CategoryType type) {
+        if (type == EXPENSE) {
+            withdraw(amount);
+        } else {
+            deposit(amount);
         }
-        this.amount = newBalance;
+    }
+
+    public void revertTransaction(BigDecimal amount, CategoryType type) {
+        if (type.equals(EXPENSE)) {
+            deposit(amount);
+        } else {
+            withdraw(amount);
+        }
+    }
+
+    public boolean hasSufficientFunds(BigDecimal amount) {
+        return this.amount.compareTo(amount) < 0;
     }
 
     public void changeCurrency(Currency newCurrency) {

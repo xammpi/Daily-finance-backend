@@ -1,5 +1,7 @@
 package com.expensetracker.dto.transaction;
 
+import com.expensetracker.entity.CategoryType;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -9,6 +11,7 @@ public record TransactionResponse(
         LocalDate date,
         String description,
         Long categoryId,
-        String categoryName
+        String categoryName,
+        CategoryType categoryType
 ) {
 }

@@ -1,9 +1,9 @@
 package com.expensetracker.controller;
 
 import com.expensetracker.dto.common.FilterRequest;
-import com.expensetracker.dto.common.PagedResponse;
 import com.expensetracker.dto.transaction.TransactionRequest;
 import com.expensetracker.dto.transaction.TransactionResponse;
+import com.expensetracker.dto.transaction.TransactionSearchResponse;
 import com.expensetracker.dto.transaction.TransactionStatisticsResponse;
 import com.expensetracker.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,7 +50,7 @@ public class TransactionController {
     }
 
     @GetMapping("/statistics")
-    @Operation(summary = "Get transaction statistics (today, week, month, totals, averages, comparisons)")
+    @Operation(summary = "Get transaction statistics (today, week, month)")
     public ResponseEntity<TransactionStatisticsResponse> getStatistics() {
         return ResponseEntity.ok(transactionService.getTransactionStatistics());
     }
@@ -85,9 +85,16 @@ public class TransactionController {
                       "sortBy": "date",
                       "sortOrder": "DESC"
                     }
-                    ```"""
+                    ```
+
+                    Response includes a summary with:
+                    - totalAmount: Sum of all matching transactions
+                    - transactionCount: Number of matching transactions
+                    - totalExpenseAmount: Sum of expense transactions
+                    - totalIncomeAmount: Sum of income transactions
+                    """
     )
-    public ResponseEntity<PagedResponse<TransactionResponse>> search(@Valid @RequestBody FilterRequest filterRequest) {
+    public ResponseEntity<TransactionSearchResponse> search(@Valid @RequestBody FilterRequest filterRequest) {
         return ResponseEntity.ok(transactionService.searchTransactions(filterRequest));
     }
 }

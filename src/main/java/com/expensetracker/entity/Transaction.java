@@ -45,11 +45,13 @@ public class Transaction extends BaseEntity {
         this.category = category;
     }
 
-    public void updateDetails(LocalDate newDate, String newDescription, Category newCategory) {
+    public void updateDetails(BigDecimal newAmount, LocalDate newDate, String newDescription, Category newCategory) {
+        validateAmount(newAmount);
         validateDate(newDate);
         validateDescription(newDescription);
         validateCategory(newCategory);
 
+        this.amount = newAmount;
         this.date = newDate;
         this.description = newDescription != null ? newDescription.trim() : null;
         this.category = newCategory;

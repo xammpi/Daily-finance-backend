@@ -10,6 +10,7 @@ import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.repository.CurrencyRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.security.JwtTokenProvider;
+import com.expensetracker.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -83,9 +84,10 @@ public class AuthService {
         String accessToken = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(authentication);
 
-        User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new BadRequestException("User not found"));
+        // Extract user info from authenticated principal (already loaded during authentication)
+        // This eliminates the redundant database query
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-        return new AuthResponse(accessToken, refreshToken, user.getId(), user.getUsername());
+        return new AuthResponse(accessToken, refreshToken, userPrincipal.getId(), userPrincipal.getUsername());
     }
 }

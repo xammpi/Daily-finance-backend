@@ -1,9 +1,10 @@
-name: Build & Push Docker Image
+name: Build and Publish
 
 on:
   push:
     branches: [ "main" ]
 
+# Права доступа (нужны для загрузки образа в реестр)
 permissions:
   contents: read
   packages: write
@@ -13,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Скачиваем код
+      # 1. Скачиваем код репозитория
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Логин в Docker Registry
+      # 2. Входим в систему реестра GitHub
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -25,10 +26,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Сборка и отправка (ВСЯ РАБОТА ТУТ)
+      # 3. Собираем и отправляем образ
+      # Внимание: здесь нет настройки Java или Maven,
+      # всё это теперь происходит внутри шага "build" (в Dockerfile)
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          # Имя образа будет ghcr.io/ВАШ_НИК/РЕПОЗИТОРИЙ:latest
           tags: ghcr.io/${{ github.repository }}:latest

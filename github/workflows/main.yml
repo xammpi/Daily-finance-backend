@@ -13,14 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Скачиваем код (обязательно!)
+      # 1. Скачиваем файлы репозитория
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ❌ МЫ УДАЛИЛИ ШАГИ "Set up Java" и "Build with Maven"
-      # Они больше не нужны, так как сборка происходит внутри Dockerfile
-
-      # 2. Логин в GitHub Registry
+      # 2. Логинимся в реестр (чтобы можно было загрузить результат)
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -28,8 +25,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Сборка и отправка
-      # Docker сам скачает Maven, соберет проект и упакует результат
+      # 3. ВСЯ МАГИЯ ТУТ:
+      # Мы просто говорим Докеру "Собери".
+      # Он сам скачает Maven, скомпилирует Java и упакует JAR внутри контейнера.
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:

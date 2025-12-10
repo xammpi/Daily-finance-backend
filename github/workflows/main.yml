@@ -4,30 +4,39 @@ on:
   push:
     branches: [ "main" ]
 
-# Разрешения для записи образа в реестр GitHub
+# Мы даем права явно, чтобы GitHub не блокировал ничего лишнего
 permissions:
-  contents: read
-  packages: write
+  contents: read      # Чтобы скачать код
+  packages: write     # Чтобы загрузить Docker-образ
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. СКАЧИВАЕМ КОД (Самое важное)
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. ПРОВЕРКА (Debug)
+      # Этот шаг покажет в логах, скачались ли файлы.
+      # Если тут пусто — значит проблема в checkout.
+      - name: Check files
+        run: ls -la
+
+      # 3. Настройка Java
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
+          cache: 'maven'
 
-      # 2. Сборка JAR (без тестов)
+      # 4. Сборка JAR
       - name: Build with Maven
         run: mvn -B package -DskipTests --file pom.xml
 
-      # 3. Логин в реестр GitHub (чтобы мы могли туда загрузить образ)
+      # 5. Логин в Docker Registry
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -35,11 +44,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4. Сборка и отправка Docker-образа
+      # 6. Сборка и отправка Docker-образа
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          # Имя образа будет: ghcr.io/ВАШ_НИК/ВАШ_РЕПОЗИТОРИЙ:latest
           tags: ghcr.io/${{ github.repository }}:latest
